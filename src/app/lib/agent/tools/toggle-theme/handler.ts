@@ -1,11 +1,5 @@
 import { Theme } from "~/hooks/use-theme";
-import { ThemeToggleOutputType } from "../client-side-tools";
-
-export type ToolOutputFn = (params: {
-  tool: string;
-  toolCallId: string;
-  output: ThemeToggleOutputType;
-}) => void;
+import { AddToolOutputFn } from "~/lib/agent/hooks/use-client-tool-handlers";
 
 /**
  * Creates a toggle theme handler for the AI chat tool system.
@@ -15,12 +9,13 @@ export function createToggleThemeHandler(
   theme: Theme,
   toggleTheme: () => void,
 ) {
-  return async (toolCallId: string, addToolOutput: ToolOutputFn) => {
+  return async (toolCallId: string, addToolOutput: AddToolOutputFn) => {
     const previousTheme = theme;
     const newTheme = previousTheme === "light" ? "dark" : "light";
     toggleTheme();
 
-    addToolOutput({
+    await addToolOutput({
+      state: "output-available",
       tool: "toggleTheme",
       toolCallId,
       output: { toggled: true, previousTheme, newTheme },

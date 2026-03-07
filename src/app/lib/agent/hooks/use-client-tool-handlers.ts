@@ -1,7 +1,14 @@
+import { AbstractChat } from "ai";
 import { useThemeContext } from "~/contexts/theme-context";
+import { AgentUIMessage } from "~/lib/message-schema";
 import { createToggleThemeHandler } from "~/lib/agent/tools/toggle-theme";
 import { createCheckThemeHandler } from "~/lib/agent/tools/check-theme";
 import { createWebPreviewHandler } from "~/lib/agent/tools/webpreview";
+
+/**
+ * Type for the addToolOutput function derived from AI SDK's AbstractChat.
+ */
+export type AddToolOutputFn = AbstractChat<AgentUIMessage>["addToolOutput"];
 
 /**
  * Generic tool handler type for client-side tools.
@@ -9,11 +16,7 @@ import { createWebPreviewHandler } from "~/lib/agent/tools/webpreview";
  */
 export type ClientToolHandler = (
   toolCallId: string,
-  addToolOutput: (params: {
-    tool: string;
-    toolCallId: string;
-    output: unknown;
-  }) => void,
+  addToolOutput: AddToolOutputFn,
 ) => Promise<void>;
 
 export type ClientToolHandlers = Record<string, ClientToolHandler>;

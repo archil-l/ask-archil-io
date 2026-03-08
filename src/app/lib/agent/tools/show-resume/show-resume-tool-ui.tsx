@@ -20,6 +20,14 @@ export interface ShowResumeToolUIProps {
  */
 export function ShowResumeToolUI({ tool, className }: ShowResumeToolUIProps) {
   return (
-    <WebPreviewToolUI tool={tool} url={RESUME_URL} className={className} />
+    <WebPreviewToolUI
+      tool={tool}
+      url={RESUME_URL}
+      className={className}
+      editUrl={false}
+      showNavigationButtons={false}
+      title={"Archil's Resume"}
+      showConsole={false}
+    />
   );
 }

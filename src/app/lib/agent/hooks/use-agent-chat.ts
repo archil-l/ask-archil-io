@@ -31,11 +31,7 @@ export const useAgentChat = (
 
       // Look up the handler dynamically
       const handler = toolHandlers[toolName];
-      if (handler) {
-        await handler(toolCallId, chat.addToolOutput);
-      } else {
-        console.warn(`[useAgentChat] No handler found for tool: ${toolName}`);
-      }
+      if (handler) await handler(toolCallId, chat.addToolOutput);
     },
   });
 

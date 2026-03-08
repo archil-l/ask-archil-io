@@ -12,17 +12,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
-    console.log(`[ThemeContext] Theme changed to: ${theme}`);
     const root = window.document.documentElement;
 
     // Remove both classes first
     root.classList.remove("light", "dark");
-    console.log(`[ThemeContext] Removed both theme classes`);
-
-    // Add the current theme class
     root.classList.add(theme);
-    console.log(`[ThemeContext] Added theme class: ${theme}`);
-    console.log(`[ThemeContext] Current HTML classes:`, root.className);
   }, [theme]);
 
   return (

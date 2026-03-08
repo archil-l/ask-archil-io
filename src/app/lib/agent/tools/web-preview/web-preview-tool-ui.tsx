@@ -22,6 +22,10 @@ export interface WebPreviewToolUIProps {
   tool: DynamicToolUIPart;
   url: string;
   className?: string;
+  editUrl?: boolean;
+  showNavigationButtons: boolean;
+  showConsole?: boolean;
+  title?: string;
 }
 
 /**
@@ -34,6 +38,10 @@ export function WebPreviewToolUI({
   tool,
   url,
   className,
+  editUrl,
+  showNavigationButtons,
+  showConsole,
+  title,
 }: WebPreviewToolUIProps) {
   const [currentUrl, setCurrentUrl] = useState(url);
   const [history, setHistory] = useState<string[]>([url]);
@@ -160,42 +168,54 @@ export function WebPreviewToolUI({
       style={{ height: "800px", minWidth: "750px" }}
       data-web-preview-container
     >
-      <WebPreviewNavigation>
-        <WebPreviewNavigationButton
-          onClick={handleGoBack}
-          tooltip="Go back"
-          disabled={!canGoBack}
-        >
-          <ArrowLeftIcon className="size-4" />
-        </WebPreviewNavigationButton>
-        <WebPreviewNavigationButton
-          onClick={handleGoForward}
-          tooltip="Go forward"
-          disabled={!canGoForward}
-        >
-          <ArrowRightIcon className="size-4" />
-        </WebPreviewNavigationButton>
+      <WebPreviewNavigation className="p-1">
+        {showNavigationButtons && (
+          <WebPreviewNavigationButton
+            onClick={handleGoBack}
+            tooltip="Go back"
+            disabled={!canGoBack}
+          >
+            <ArrowLeftIcon className="size-3" />
+          </WebPreviewNavigationButton>
+        )}
+        {showNavigationButtons && (
+          <WebPreviewNavigationButton
+            onClick={handleGoForward}
+            tooltip="Go forward"
+            disabled={!canGoForward}
+          >
+            <ArrowRightIcon className="size-3" />
+          </WebPreviewNavigationButton>
+        )}
+
+        {title && (
+          <div className="pl-2 flex gap-2">
+            <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-950 dark:text-blue-200">
+              {title}
+            </span>
+          </div>
+        )}
         <WebPreviewNavigationButton onClick={handleReload} tooltip="Reload">
-          <RefreshCcwIcon className="size-4" />
+          <RefreshCcwIcon className="size-3" />
         </WebPreviewNavigationButton>
-        <WebPreviewUrl />
+        <WebPreviewUrl className="h-6 text-xs" disabled={!editUrl} />
         <WebPreviewNavigationButton
           onClick={handleOpenInNewTab}
           tooltip="Open in new tab"
         >
-          <ExternalLinkIcon className="size-4" />
+          <ExternalLinkIcon className="size-3" />
         </WebPreviewNavigationButton>
         <WebPreviewNavigationButton
           onClick={handleToggleFullscreen}
           tooltip="Maximize"
         >
-          <Maximize2Icon className="size-4" />
+          <Maximize2Icon className="size-3" />
         </WebPreviewNavigationButton>
       </WebPreviewNavigation>
 
       <WebPreviewBody src={currentUrl} />
 
-      <WebPreviewConsole logs={logs} />
+      <WebPreviewConsole logs={logs} noButton={showConsole} />
     </WebPreview>
   );
 }

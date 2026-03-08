@@ -3,7 +3,6 @@ import { useThemeContext } from "~/contexts/theme-context";
 import { AgentUIMessage } from "~/lib/message-schema";
 import { createToggleThemeHandler } from "~/lib/agent/tools/toggle-theme";
 import { createCheckThemeHandler } from "~/lib/agent/tools/check-theme";
-import { createWebPreviewHandler } from "~/lib/agent/tools/webpreview";
 
 /**
  * Type for the addToolOutput function derived from AI SDK's AbstractChat.
@@ -31,7 +30,6 @@ export function useClientToolHandlers(): ClientToolHandlers {
   return {
     toggleTheme: createToggleThemeHandler(theme, toggleTheme),
     checkTheme: createCheckThemeHandler(theme),
-    webpreview: createWebPreviewHandler(),
     // Add more client-side tool handlers here as needed:
     // copyToClipboard: createCopyToClipboardHandler(...),
     // playSound: createPlaySoundHandler(...),

@@ -40,18 +40,10 @@ export const checkThemeTool = tool({
   outputSchema: themeCheckOutput,
 });
 
-// WebPreview Tool
-export const webPreviewOutput = z.object({
-  opened: z.boolean(),
-});
-
-export type WebPreviewOutputType = z.infer<typeof webPreviewOutput>;
-
 export const webPreviewTool = tool({
   description:
     "Open a web preview of a specified URL. Call this when the user asks to view a website, open a link, or preview web content.",
   inputSchema: z.object({
-    url: z.string().url("Please provide a valid URL"),
+    url: z.url("Please provide a valid URL"),
   }),
-  outputSchema: webPreviewOutput,
 });

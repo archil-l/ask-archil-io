@@ -34,12 +34,11 @@ import {
 } from "~/components/ai-elements/tool";
 import { ToggleThemeToolUI } from "../../../lib/agent/tools/toggle-theme/toggle-theme-tool-ui";
 import { CheckThemeToolUI } from "../../../lib/agent/tools/check-theme/check-theme-tool-ui";
-import { WebPreviewToolUI } from "../../../lib/agent/tools/webpreview/webpreview-tool-ui";
-import { Theme } from "~/hooks/use-theme";
 import {
   ThemeToggleOutputType,
   ThemeCheckOutputType,
 } from "~/lib/agent/tools/client-side-tools";
+import { WebPreview } from "~/components/ai-elements/web-preview";
 
 // Helper to extract tool name from tool part
 function getToolName(toolPart: ToolUIPart | DynamicToolUIPart): string | null {
@@ -131,13 +130,7 @@ export function UIMessagePartRenderer({
         input && typeof input === "object" && "url" in input
           ? (input as any).url
           : "";
-      return (
-        <WebPreviewToolUI
-          key={`${messageId}-tool-${index}`}
-          tool={toolPart as DynamicToolUIPart}
-          url={url}
-        />
-      );
+      return <WebPreview key={`${messageId}-tool-${index}`} defaultUrl={url} />;
     }
 
     const toolHeaderProps =

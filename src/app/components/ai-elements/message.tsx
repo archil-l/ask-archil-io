@@ -326,7 +326,7 @@ export const MessageResponse = memo(
     <Streamdown
       className={cn(
         "prose prose-neutral dark:prose-invert max-w-none",
-        "prose-p:my-4 prose-li:my-1 prose-headings:my-3",
+        "prose-p:my-4 prose-li:my-0.25 prose-headings:my-3 prose-hr:my-5",
         "size-full [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         className,
       )}

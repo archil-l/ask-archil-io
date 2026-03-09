@@ -1,6 +1,7 @@
 export const WELCOME_MESSAGE = `# Hi there! 🖖🏻
 
-My name is Archil Lelashvili - I'm a software engineer at Amazon Robotics, building agentic AI systems, full-stack web applications and more. 
+My name is Archil Lelashvili - I'm a software engineer at [Amazon Robotics](https://www.aboutamazon.com/news/tag/robotics), building agentic AI systems, full-stack web applications and more. 
+<br>
 
 Welcome to my personal page! I'm excited to share my work, projects, and insights into my engineering journey. Glad to have you here!
 

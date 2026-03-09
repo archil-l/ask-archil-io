@@ -16,7 +16,11 @@ export function IconSuggestion({
   onClick,
 }: IconSuggestionProps) {
   return (
-    <Suggestion suggestion={text} onClick={onClick} className="font-normal">
+    <Suggestion
+      suggestion={text}
+      onClick={onClick}
+      className="font-normal bg-background dark:bg-background"
+    >
       <div className="flex items-center gap-2">
         <Icon className={cn("h-4 w-4", iconColor)} />
         <span>{text}</span>

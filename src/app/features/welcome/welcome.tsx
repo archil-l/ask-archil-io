@@ -53,7 +53,7 @@ function WelcomeContent() {
       {/* Main Content */}
       <ConversationArea className="mt-[100px] w-full max-w-3xl mx-auto relative" />
 
-      <div className="fixed w-full left-[50%] translate-x-[-50%] bottom-[100px] p-4 z-50 justify-items-center">
+      <div className="fixed w-full left-[50%] translate-x-[-50%] bottom-[100px] p-4 z-50 justify-items-center pointer-events-none">
         <SuggestionBar
           suggestions={PREDEFINED_PROMPTS}
           onSuggestionClick={(suggestion) => {

@@ -47,7 +47,7 @@ const environments: Record<Stage, EnvironmentConfig> = {
     domainName: "ask.archil.io",
     parentHostedZoneId: "Z00681622F9CUFDPFSU6B",
     parentDelegationRoleArn:
-      "arn:aws:iam::359373592118:role/agent-archil-io-dns-delegation-role",
+      "arn:aws:iam::359373592118:role/ask-archil-io-dns-delegation-role",
   },
 };
 

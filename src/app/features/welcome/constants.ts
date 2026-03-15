@@ -24,7 +24,7 @@ export const PREDEFINED_PROMPTS: SuggestionPrompt[] = [
     iconColor: "text-blue-500",
   },
   {
-    text: "How is this page is built?",
+    text: "How is this page built?",
     icon: Code,
     iconColor: "text-green-500",
   },

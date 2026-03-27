@@ -30,6 +30,9 @@ export class LLMStreamStack extends cdk.Stack {
     const mcpServerFunctionUrl = cdk.Fn.importValue(
       `mcp-server-function-url-${envConfig.stage}`,
     );
+    const clientAccessRoleArn = cdk.Fn.importValue(
+      `client-access-role-arn-${envConfig.stage}`,
+    );
 
     // Lambda function for LLM streaming
     const streamingFunction = new lambda.Function(this, "llm-stream-function", {
@@ -48,6 +51,8 @@ export class LLMStreamStack extends cdk.Stack {
         JWT_SECRET_ARN: secretsStack.jwtSecretArn,
         // MCP Server configuration
         MCP_SERVER_URL: cdk.Fn.join("", [mcpServerFunctionUrl, "mcp"]),
+        // Client access role for assuming temporary credentials
+        CLIENT_ACCESS_ROLE_ARN: clientAccessRoleArn,
       },
       logRetention: envConfig.logRetentionDays,
     });
@@ -58,6 +63,15 @@ export class LLMStreamStack extends cdk.Stack {
         effect: iam.Effect.ALLOW,
         actions: ["lambda:InvokeFunctionUrl"],
         resources: [mcpServerFunctionArn],
+      }),
+    );
+
+    // Grant permission to assume the MCP server client access role
+    streamingFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["sts:AssumeRole"],
+        resources: [clientAccessRoleArn],
       }),
     );
 

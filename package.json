@@ -21,9 +21,9 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.44",
     "@ai-sdk/mcp": "^1.0.30",
-    "@ai-sdk/react": "^3.0.88",
+    "@ai-sdk/react": "^3.0.142",
     "@aws-crypto/sha256-js": "^5.2.0",
-    "@aws-sdk/client-secrets-manager": "3.988.0",
+    "@aws-sdk/client-secrets-manager": "3.1018.0",
     "@marsidev/react-turnstile": "^1.4.2",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",
@@ -83,8 +83,8 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@aws-sdk/client-route-53": "3.988",
-    "@aws-sdk/client-sts": "3.988",
+    "@aws-sdk/client-route-53": "3.1018.0",
+    "@aws-sdk/client-sts": "3.1018.0",
     "@react-router/dev": "^7.8.2",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/aws-lambda": "^8.10.160",

@@ -31,7 +31,7 @@ export class LLMStreamStack extends cdk.Stack {
       `mcp-server-function-url-${envConfig.stage}`,
     );
     const clientAccessRoleArn = cdk.Fn.importValue(
-      `client-access-role-arn-${envConfig.stage}`,
+      `mcp-server-client-access-role-arn-${envConfig.stage}`,
     );
 
     // Lambda function for LLM streaming

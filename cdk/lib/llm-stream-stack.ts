@@ -48,7 +48,6 @@ export class LLMStreamStack extends cdk.Stack {
         JWT_SECRET_ARN: secretsStack.jwtSecretArn,
         // MCP Server configuration
         MCP_SERVER_URL: cdk.Fn.join("", [mcpServerFunctionUrl, "mcp"]),
-        AWS_REGION: envConfig.region,
       },
       logRetention: envConfig.logRetentionDays,
     });

@@ -1,6 +1,7 @@
 import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Runtime, Architecture } from "aws-cdk-lib/aws-lambda";
+import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -22,6 +23,14 @@ export class LLMStreamStack extends cdk.Stack {
 
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+    // Import MCP server details from the mcp-ask-archil stack
+    const mcpServerFunctionArn = cdk.Fn.importValue(
+      `mcp-server-function-arn-${envConfig.stage}`,
+    );
+    const mcpServerFunctionUrl = cdk.Fn.importValue(
+      `mcp-server-function-url-${envConfig.stage}`,
+    );
+
     // Lambda function for LLM streaming
     const streamingFunction = new lambda.Function(this, "llm-stream-function", {
       functionName: `ask-archil-io-${envConfig.stage}-llm-stream-function`,
@@ -37,9 +46,21 @@ export class LLMStreamStack extends cdk.Stack {
         ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "",
         NODE_ENV: "production",
         JWT_SECRET_ARN: secretsStack.jwtSecretArn,
+        // MCP Server configuration
+        MCP_SERVER_URL: cdk.Fn.join("", [mcpServerFunctionUrl, "mcp"]),
+        AWS_REGION: envConfig.region,
       },
       logRetention: envConfig.logRetentionDays,
     });
+
+    // Grant permission to invoke MCP server Lambda Function URL
+    streamingFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["lambda:InvokeFunctionUrl"],
+        resources: [mcpServerFunctionArn],
+      }),
+    );
 
     // Grant Lambda function read access to JWT secret
     secretsStack.jwtSecret.grantRead(streamingFunction);

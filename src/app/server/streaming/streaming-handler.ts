@@ -1,5 +1,5 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { streamText, convertToModelMessages, stepCountIs } from "ai";
+import { streamText, convertToModelMessages, stepCountIs, ToolSet } from "ai";
 import {
   SecretsManagerClient,
   GetSecretValueCommand,
@@ -8,6 +8,7 @@ import { verifyAuthHeader } from "../auth/jwt-verifier.js";
 import { AgentUIMessage } from "~/lib/message-schema";
 import { buildSystemPrompt } from "~/lib/agent/system-prompt.js";
 import { allTools } from "~/lib/agent/tools/index.js";
+import { getMcpTools, closeMcpClient } from "../mcp/mcp-client.js";
 
 const MODEL = "claude-haiku-4-5-20251001";
 
@@ -188,12 +189,23 @@ export const handler = awslambda.streamifyResponse(
       // Convert UI messages to model messages
       const modelMessages = await convertToModelMessages(inputMessages);
 
+      // Get MCP tools (with graceful degradation if server unavailable)
+      const { tools: mcpTools, client: mcpClient } = await getMcpTools();
+
+      // Combine client-side tools with MCP tools
+      const combinedTools: ToolSet = {
+        ...allTools,
+        ...mcpTools,
+      };
+
+      console.log("Available tools:", Object.keys(combinedTools));
+
       // Use streamText with automatic tool execution via stopWhen
       const result = streamText({
         model: anthropic(MODEL),
         system: buildSystemPrompt(),
         messages: modelMessages,
-        tools: allTools,
+        tools: combinedTools,
         stopWhen: stepCountIs(5), // Allow up to 5 tool execution loops
       });
 
@@ -204,6 +216,9 @@ export const handler = awslambda.streamifyResponse(
         // Use SSE format: "data: <json>\n\n"
         responseStream.write(`data: ${JSON.stringify(chunk)}\n\n`);
       }
+
+      // Close MCP client connection
+      await closeMcpClient(mcpClient);
 
       responseStream.end();
     } catch (error) {

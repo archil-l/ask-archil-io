@@ -20,7 +20,9 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.44",
+    "@ai-sdk/mcp": "^1.0.30",
     "@ai-sdk/react": "^3.0.88",
+    "@aws-crypto/sha256-js": "^5.2.0",
     "@aws-sdk/client-secrets-manager": "3.988.0",
     "@marsidev/react-turnstile": "^1.4.2",
     "@radix-ui/react-avatar": "^1.1.11",
@@ -41,6 +43,8 @@
     "@react-router/node": "^7.8.2",
     "@react-router/serve": "^7.8.2",
     "@rive-app/react-webgl2": "^4.27.0",
+    "@smithy/protocol-http": "^5.3.12",
+    "@smithy/signature-v4": "^5.3.12",
     "@streamdown/cjk": "^1.0.2",
     "@streamdown/code": "^1.0.2",
     "@streamdown/math": "^1.0.2",

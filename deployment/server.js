@@ -32,6 +32,9 @@ if (cloudfrontUrl) {
   app.use("/theme-init.js", (req, res) => {
     res.redirect(302, `${cloudfrontUrl}/theme-init.js`);
   });
+  app.use("/sandbox.html", (req, res) => {
+    res.redirect(302, `${cloudfrontUrl}/sandbox.html`);
+  });
   app.use("/fonts", (req, res) => {
     res.redirect(302, `${cloudfrontUrl}/fonts${req.path}`);
   });

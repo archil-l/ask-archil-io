@@ -40,6 +40,10 @@ import {
 } from "~/lib/agent/tools/client-side-tools";
 import { WebPreviewToolUI } from "~/lib/agent/tools/web-preview";
 import { ShowResumeToolUI } from "~/lib/agent/tools/show-resume";
+import {
+  McpToolUI,
+  extractUIResourceHtml,
+} from "~/lib/agent/tools/mcp-ui/mcp-tool-ui";
 
 // Helper to extract tool name from tool part
 function getToolName(toolPart: ToolUIPart | DynamicToolUIPart): string | null {
@@ -148,6 +152,20 @@ export function UIMessagePartRenderer({
           tool={toolPart as DynamicToolUIPart}
         />
       );
+    }
+
+    // Render MCP tool UI if the output contains a UIResource
+    if (toolPart.type === "dynamic-tool" && toolPart.state === "output-available") {
+      const uiHtml = extractUIResourceHtml(toolPart.output);
+      if (uiHtml) {
+        return (
+          <McpToolUI
+            key={`${messageId}-tool-${index}`}
+            tool={toolPart as DynamicToolUIPart}
+            html={uiHtml}
+          />
+        );
+      }
     }
 
     const toolHeaderProps =

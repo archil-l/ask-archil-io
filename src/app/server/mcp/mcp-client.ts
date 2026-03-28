@@ -4,11 +4,8 @@ import { createSignedFetcher } from "aws-sigv4-fetch";
 import { STSClient, AssumeRoleCommand } from "@aws-sdk/client-sts";
 
 // MCP Server configuration
-const MCP_SERVER_URL =
-  process.env.MCP_SERVER_URL ||
-  "https://pkwf55vc2ekorcesqaubtw2sny0dfzbv.lambda-url.us-east-1.on.aws/mcp";
-
-const AWS_REGION = process.env.AWS_REGION || "us-east-1";
+const MCP_SERVER_URL = process.env.MCP_SERVER_URL;
+const AWS_REGION = process.env.AWS_REGION;
 const CLIENT_ACCESS_ROLE_ARN = process.env.CLIENT_ACCESS_ROLE_ARN;
 
 /**
@@ -55,9 +52,12 @@ export async function createMcpToolsClient() {
     },
   });
 
-  const transport = new StreamableHTTPClientTransport(new URL(MCP_SERVER_URL), {
-    fetch: signedFetch,
-  });
+  const transport = new StreamableHTTPClientTransport(
+    new URL(MCP_SERVER_URL || ""),
+    {
+      fetch: signedFetch,
+    },
+  );
 
   const mcpClient = await createMCPClient({
     transport,

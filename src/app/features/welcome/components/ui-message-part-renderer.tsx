@@ -71,6 +71,8 @@ export function UIMessagePartRenderer({
   isStreaming,
 }: UIMessagePartRendererProps) {
   // Handle text parts
+  console.log(part);
+
   if (isTextUIPart(part)) {
     const textPart = part as TextUIPart;
     return (
@@ -155,7 +157,10 @@ export function UIMessagePartRenderer({
     }
 
     // Render MCP tool UI if the output contains a UIResource
-    if (toolPart.type === "dynamic-tool" && toolPart.state === "output-available") {
+    if (
+      toolPart.type === "dynamic-tool" &&
+      toolPart.state === "output-available"
+    ) {
       const uiHtml = extractUIResourceHtml(toolPart.output);
       if (uiHtml) {
         return (

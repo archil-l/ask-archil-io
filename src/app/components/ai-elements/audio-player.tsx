@@ -1,6 +1,6 @@
 "use client";
 
-import type { Experimental_SpeechResult as SpeechResult } from "ai";
+import type { Experimental_SpeechResult as SpeechResult } from "~/lib/message-schema";
 import type { ComponentProps, CSSProperties } from "react";
 
 import { Button } from "~/components/ui/button";

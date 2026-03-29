@@ -1,7 +1,8 @@
-import { createMCPClient } from "@ai-sdk/mcp";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { createSignedFetcher } from "aws-sigv4-fetch";
 import { STSClient, AssumeRoleCommand } from "@aws-sdk/client-sts";
+import type Anthropic from "@anthropic-ai/sdk";
 
 // MCP Server configuration
 const MCP_SERVER_URL = process.env.MCP_SERVER_URL;
@@ -38,67 +39,66 @@ async function getCredentials() {
   }
 }
 
-export async function createMcpToolsClient() {
-  const { accessKeyId, secretAccessKey, sessionToken } = await getCredentials();
-
-  // 1. Setup the SigV4 signed fetcher
-  const signedFetch = createSignedFetcher({
-    service: "lambda",
-    region: AWS_REGION,
-    credentials: {
-      accessKeyId,
-      secretAccessKey,
-      sessionToken,
-    },
-  });
-
-  const transport = new StreamableHTTPClientTransport(
-    new URL(MCP_SERVER_URL || ""),
-    {
-      fetch: signedFetch,
-    },
-  );
-
-  const mcpClient = await createMCPClient({
-    transport,
-  });
-
-  return mcpClient;
-}
+export type McpToolsClient = {
+  anthropicTools: Anthropic.Tool[];
+  callTool: (name: string, input: Record<string, unknown>) => Promise<unknown>;
+  close: () => Promise<void>;
+};
 
 /**
- * Creates and returns an MCP client connected to the mcp-ask-archil server.
- * Uses custom SigV4 transport for authenticated Lambda Function URL.
+ * Creates and connects an MCP client, returning Anthropic-compatible tools
+ * and a callTool function for server-side tool execution.
+ * Returns empty tools with graceful degradation if connection fails.
  */
+export async function getMcpTools(): Promise<McpToolsClient> {
+  if (!MCP_SERVER_URL) {
+    console.log("MCP_SERVER_URL not set, skipping MCP tools");
+    return { anthropicTools: [], callTool: async () => ({}), close: async () => {} };
+  }
 
-/**
- * Gets tools from the MCP server.
- * Returns an empty object if connection fails to allow graceful degradation.
- */
-export async function getMcpTools() {
   try {
-    const mcpClient = await createMcpToolsClient();
-    const tools = await mcpClient.tools();
-    console.log("MCP tools loaded:", Object.keys(tools));
-    return { tools, client: mcpClient };
+    const { accessKeyId, secretAccessKey, sessionToken } = await getCredentials();
+
+    const signedFetch = createSignedFetcher({
+      service: "lambda",
+      region: AWS_REGION,
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+        sessionToken,
+      },
+    });
+
+    const transport = new StreamableHTTPClientTransport(
+      new URL(MCP_SERVER_URL),
+      { fetch: signedFetch },
+    );
+
+    const client = new Client({ name: "ask-archil-mcp-client", version: "1.0.0" });
+    await client.connect(transport);
+
+    const { tools } = await client.listTools();
+    console.log("MCP tools loaded:", tools.map((t) => t.name));
+
+    const anthropicTools: Anthropic.Tool[] = tools.map((t) => ({
+      name: t.name,
+      description: t.description ?? "",
+      input_schema: (t.inputSchema as Anthropic.Tool["input_schema"]) ?? {
+        type: "object",
+        properties: {},
+      },
+    }));
+
+    return {
+      anthropicTools,
+      callTool: async (name: string, input: Record<string, unknown>) => {
+        const result = await client.callTool({ name, arguments: input });
+        return result;
+      },
+      close: () => client.close(),
+    };
   } catch (error) {
     console.error("Failed to connect to MCP server:", error);
-    // Return empty tools to allow graceful degradation
-    return { tools: {}, client: null };
-  }
-}
-
-/**
- * Closes the MCP client connection if it exists.
- */
-export async function closeMcpClient(
-  client: Awaited<ReturnType<typeof createMCPClient>> | null,
-) {
-  if (client) {
-    try {
-      await client.close();
-    } catch (error) {
-      console.error("Error closing MCP client:", error);
-    }
+    return { anthropicTools: [], callTool: async () => ({}), close: async () => {} };
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { UIMessage } from "ai";
+import type { AgentUIMessage } from "~/lib/message-schema";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
 
 import { Button } from "~/components/ui/button";
@@ -29,7 +29,7 @@ import {
 import { Streamdown } from "streamdown";
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
-  from: UIMessage["role"];
+  from: AgentUIMessage["role"];
 };
 
 export const Message = ({ className, from, ...props }: MessageProps) => (

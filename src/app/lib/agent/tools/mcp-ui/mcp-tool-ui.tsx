@@ -2,7 +2,7 @@
 
 import { AppRenderer } from "@mcp-ui/client";
 import { isUIResource } from "@mcp-ui/client";
-import type { DynamicToolUIPart } from "ai";
+import type { DynamicToolUIPart } from "~/lib/message-schema";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 /**

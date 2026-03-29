@@ -1,6 +1,6 @@
 "use client";
 
-import type { DynamicToolUIPart, ToolUIPart } from "ai";
+import type { DynamicToolUIPart, ToolUIPart } from "~/lib/message-schema";
 import type { ComponentProps, ReactNode } from "react";
 
 import { Badge } from "~/components/ui/badge";

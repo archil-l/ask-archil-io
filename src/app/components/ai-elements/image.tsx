@@ -1,4 +1,4 @@
-import type { Experimental_GeneratedImage } from "ai";
+import type { Experimental_GeneratedImage } from "~/lib/message-schema";
 
 import { cn } from "~/lib/utils";
 

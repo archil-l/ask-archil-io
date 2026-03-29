@@ -1,42 +1,38 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { streamText, convertToModelMessages, stepCountIs, ToolSet } from "ai";
+import Anthropic from "@anthropic-ai/sdk";
 import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
 import { verifyAuthHeader } from "../auth/jwt-verifier.js";
-import { AgentUIMessage } from "~/lib/message-schema";
+import { AgentUIMessage, DynamicToolUIPart } from "~/lib/message-schema";
 import { buildSystemPrompt } from "~/lib/agent/system-prompt.js";
 import { allTools } from "~/lib/agent/tools/index.js";
-import { getMcpTools, closeMcpClient } from "../mcp/mcp-client.js";
+import { getMcpTools } from "../mcp/mcp-client.js";
+import z from "zod";
 
 const MODEL = "claude-haiku-4-5-20251001";
+const MAX_STEPS = 5;
+
+// Client-side tools that must be executed on the browser
+const CLIENT_SIDE_TOOLS = new Set(Object.keys(allTools));
 
 // Secrets Manager client for JWT secret retrieval
 const secretsClient = new SecretsManagerClient({
   region: process.env.AWS_REGION || "us-east-1",
 });
 
-/**
- * Fetch JWT signing secret from AWS Secrets Manager
- */
 async function fetchJWTSecret(): Promise<string> {
   try {
     const secretArn = process.env.JWT_SECRET_ARN;
     if (!secretArn) {
       throw new Error("JWT_SECRET_ARN environment variable is not set");
     }
-
-    const command = new GetSecretValueCommand({
-      SecretId: secretArn,
-    });
+    const command = new GetSecretValueCommand({ SecretId: secretArn });
     const response = await secretsClient.send(command);
-
     if (response.SecretString) {
       const secretJson = JSON.parse(response.SecretString);
       return secretJson.secret;
     }
-
     throw new Error("Secret does not have a SecretString");
   } catch (error) {
     console.error("Failed to fetch JWT secret:", error);
@@ -64,7 +60,6 @@ interface HttpResponseStreamMetadata {
   headers: Record<string, string>;
 }
 
-// AWS Lambda streaming response helper
 declare const awslambda: {
   streamifyResponse: (
     handler: (
@@ -81,13 +76,258 @@ declare const awslambda: {
   };
 };
 
+// SSE event types
+type SSEEvent =
+  | { type: "text-delta"; delta: string }
+  | { type: "reasoning-delta"; delta: string }
+  | { type: "tool-start"; toolCallId: string; toolName: string }
+  | { type: "tool-input-delta"; toolCallId: string; delta: string }
+  | { type: "tool-input-done"; toolCallId: string; input: unknown }
+  | { type: "tool-result"; toolCallId: string; output: unknown }
+  | { type: "tool-error"; toolCallId: string; error: string }
+  | {
+      type: "client-tools-needed";
+      tools: Array<{ toolCallId: string; toolName: string; input: unknown }>;
+    }
+  | { type: "done"; finishReason: string }
+  | { type: "error"; error: string };
+
+function writeSSE(stream: ResponseStream, event: SSEEvent): void {
+  stream.write(`data: ${JSON.stringify(event)}\n\n`);
+}
+
+/**
+ * Convert client-side Zod tool definitions to Anthropic Tool format
+ */
+function buildClientSideAnthropicTools(): Anthropic.Tool[] {
+  return Object.entries(allTools).map(([name, def]) => ({
+    name,
+    description: def.description,
+    input_schema: z.toJSONSchema(def.inputSchema) as Anthropic.Tool["input_schema"],
+  }));
+}
+
+/**
+ * Convert AgentUIMessage[] to Anthropic MessageParam[] format.
+ * Tool results from a prior client-side round are passed separately and appended.
+ */
+function convertToAnthropicMessages(
+  messages: AgentUIMessage[],
+  toolResults?: Array<{ toolCallId: string; toolName: string; output: unknown }>,
+): Anthropic.MessageParam[] {
+  const result: Anthropic.MessageParam[] = [];
+
+  for (const msg of messages) {
+    if (msg.role === "user") {
+      const textContent = msg.parts
+        .filter((p) => p.type === "text")
+        .map((p) => (p as { type: "text"; text: string }).text)
+        .join("\n");
+
+      if (textContent.trim()) {
+        result.push({ role: "user", content: textContent });
+      }
+    } else if (msg.role === "assistant") {
+      const content: Anthropic.ContentBlockParam[] = [];
+
+      for (const part of msg.parts) {
+        if (part.type === "text") {
+          const text = (part as { type: "text"; text: string }).text;
+          if (text) content.push({ type: "text", text });
+        } else if (part.type === "dynamic-tool") {
+          const toolPart = part as DynamicToolUIPart;
+          content.push({
+            type: "tool_use",
+            id: toolPart.toolCallId,
+            name: toolPart.toolName,
+            input: (toolPart.input as Record<string, unknown>) ?? {},
+          });
+        }
+      }
+
+      if (content.length > 0) {
+        result.push({ role: "assistant", content });
+      }
+    }
+  }
+
+  // Append tool results as a user message if provided (client-side tool execution round)
+  if (toolResults && toolResults.length > 0) {
+    result.push({
+      role: "user",
+      content: toolResults.map((tr) => ({
+        type: "tool_result" as const,
+        tool_use_id: tr.toolCallId,
+        content: JSON.stringify(tr.output),
+      })),
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Run the agentic loop: call Anthropic, execute MCP tools server-side,
+ * and stream events to client. Stops when:
+ * - Natural end (stop_reason: end_turn)
+ * - Client-side tools needed (emits client-tools-needed event)
+ * - Max steps reached
+ */
+async function runAgenticLoop(
+  anthropic: Anthropic,
+  messages: Anthropic.MessageParam[],
+  tools: Anthropic.Tool[],
+  mcpCallTool: (name: string, input: Record<string, unknown>) => Promise<unknown>,
+  responseStream: ResponseStream,
+): Promise<void> {
+  let currentMessages = [...messages];
+
+  for (let step = 0; step < MAX_STEPS; step++) {
+    // Track current tool call id for streaming input deltas
+    let currentToolCallId: string | null = null;
+
+    const stream = anthropic.messages.stream({
+      model: MODEL,
+      system: buildSystemPrompt(),
+      messages: currentMessages,
+      tools: tools.length > 0 ? tools : undefined,
+      max_tokens: 8192,
+    });
+
+    // Stream events to client as they arrive
+    for await (const event of stream) {
+      if (event.type === "content_block_start") {
+        if (event.content_block.type === "tool_use") {
+          currentToolCallId = event.content_block.id;
+          writeSSE(responseStream, {
+            type: "tool-start",
+            toolCallId: event.content_block.id,
+            toolName: event.content_block.name,
+          });
+        }
+      } else if (event.type === "content_block_delta") {
+        if (event.delta.type === "text_delta") {
+          writeSSE(responseStream, {
+            type: "text-delta",
+            delta: event.delta.text,
+          });
+        } else if (
+          event.delta.type === "input_json_delta" &&
+          currentToolCallId
+        ) {
+          writeSSE(responseStream, {
+            type: "tool-input-delta",
+            toolCallId: currentToolCallId,
+            delta: event.delta.partial_json,
+          });
+        }
+      } else if (event.type === "content_block_stop") {
+        currentToolCallId = null;
+      }
+    }
+
+    const finalMessage = await stream.finalMessage();
+    currentMessages.push({ role: "assistant", content: finalMessage.content });
+
+    // If not a tool_use stop, we're done
+    if (finalMessage.stop_reason !== "tool_use") {
+      writeSSE(responseStream, {
+        type: "done",
+        finishReason: finalMessage.stop_reason ?? "end_turn",
+      });
+      return;
+    }
+
+    // Collect tool use blocks
+    const toolUseBlocks = finalMessage.content.filter(
+      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+    );
+
+    const serverToolBlocks = toolUseBlocks.filter(
+      (b) => !CLIENT_SIDE_TOOLS.has(b.name),
+    );
+    const clientToolBlocks = toolUseBlocks.filter((b) =>
+      CLIENT_SIDE_TOOLS.has(b.name),
+    );
+
+    // Emit tool-input-done events for all tool use blocks
+    for (const block of toolUseBlocks) {
+      writeSSE(responseStream, {
+        type: "tool-input-done",
+        toolCallId: block.id,
+        input: block.input,
+      });
+    }
+
+    // Execute server-side (MCP) tools
+    const toolResultContent: Anthropic.ToolResultBlockParam[] = [];
+
+    for (const block of serverToolBlocks) {
+      try {
+        const output = await mcpCallTool(
+          block.name,
+          block.input as Record<string, unknown>,
+        );
+        writeSSE(responseStream, {
+          type: "tool-result",
+          toolCallId: block.id,
+          output,
+        });
+        toolResultContent.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          content: JSON.stringify(output),
+        });
+      } catch (err) {
+        const errorMsg = String(err);
+        writeSSE(responseStream, {
+          type: "tool-error",
+          toolCallId: block.id,
+          error: errorMsg,
+        });
+        toolResultContent.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          content: `Error: ${errorMsg}`,
+          is_error: true,
+        });
+      }
+    }
+
+    // If client-side tools are needed, pause and let client execute them
+    if (clientToolBlocks.length > 0) {
+      writeSSE(responseStream, {
+        type: "client-tools-needed",
+        tools: clientToolBlocks.map((b) => ({
+          toolCallId: b.id,
+          toolName: b.name,
+          input: b.input,
+        })),
+      });
+      writeSSE(responseStream, {
+        type: "done",
+        finishReason: "client-tools-needed",
+      });
+      return;
+    }
+
+    // Continue with server tool results
+    if (toolResultContent.length > 0) {
+      currentMessages.push({ role: "user", content: toolResultContent });
+    }
+  }
+
+  // Max steps reached
+  writeSSE(responseStream, { type: "done", finishReason: "max-steps" });
+}
+
 export const handler = awslambda.streamifyResponse(
   async (
     event: StreamingEvent,
     responseStream: ResponseStream,
     _context: unknown,
   ) => {
-    // Handle CORS preflight - headers are managed by Lambda Function URL CORS config
+    // Handle CORS preflight
     if (event.requestContext?.http?.method === "OPTIONS") {
       responseStream = awslambda.HttpResponseStream.from(responseStream, {
         statusCode: 200,
@@ -98,7 +338,7 @@ export const handler = awslambda.streamifyResponse(
     }
 
     try {
-      // Verify JWT token from Authorization header
+      // Verify JWT token
       const jwtSecret = await fetchJWTSecret();
       const verificationResult = verifyAuthHeader(
         event.headers || {},
@@ -108,9 +348,7 @@ export const handler = awslambda.streamifyResponse(
       if (!verificationResult) {
         responseStream = awslambda.HttpResponseStream.from(responseStream, {
           statusCode: 401,
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         });
         responseStream.write(
           JSON.stringify({ error: "Missing Authorization header" }),
@@ -122,9 +360,7 @@ export const handler = awslambda.streamifyResponse(
       if (!verificationResult.valid) {
         responseStream = awslambda.HttpResponseStream.from(responseStream, {
           statusCode: 401,
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         });
         responseStream.write(
           JSON.stringify({
@@ -137,16 +373,19 @@ export const handler = awslambda.streamifyResponse(
 
       // Parse request body
       const body = event.body ? JSON.parse(event.body) : {};
-      const { messages: inputMessages } = body as {
+      const { messages: inputMessages, toolResults } = body as {
         messages?: AgentUIMessage[];
+        toolResults?: Array<{
+          toolCallId: string;
+          toolName: string;
+          output: unknown;
+        }>;
       };
 
       if (!inputMessages || !Array.isArray(inputMessages)) {
         responseStream = awslambda.HttpResponseStream.from(responseStream, {
           statusCode: 400,
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         });
         responseStream.write(
           JSON.stringify({ error: "messages array is required" }),
@@ -155,13 +394,10 @@ export const handler = awslambda.streamifyResponse(
         return;
       }
 
-      // Check for API key
       if (!process.env.ANTHROPIC_API_KEY) {
         responseStream = awslambda.HttpResponseStream.from(responseStream, {
           statusCode: 500,
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         });
         responseStream.write(
           JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured" }),
@@ -170,66 +406,51 @@ export const handler = awslambda.streamifyResponse(
         return;
       }
 
-      // Set up streaming response - CORS headers are managed by Lambda Function URL config
-      // Use SSE format for AI SDK v6 UI Message Stream Protocol
+      // Set up SSE streaming response
       responseStream = awslambda.HttpResponseStream.from(responseStream, {
         statusCode: 200,
         headers: {
           "Content-Type": "text/event-stream; charset=utf-8",
           "Cache-Control": "no-cache",
-          "x-vercel-ai-ui-message-stream": "v1",
         },
       });
 
-      // Create Anthropic provider using AI SDK
-      const anthropic = createAnthropic({
+      const anthropic = new Anthropic({
         apiKey: process.env.ANTHROPIC_API_KEY,
       });
 
-      // Convert UI messages to model messages
-      const modelMessages = await convertToModelMessages(inputMessages);
+      // Build Anthropic message history
+      const anthropicMessages = convertToAnthropicMessages(
+        inputMessages,
+        toolResults,
+      );
 
-      // Get MCP tools (with graceful degradation if server unavailable)
-      const { tools: mcpTools, client: mcpClient } = await getMcpTools();
+      // Load MCP tools (graceful degradation)
+      const { anthropicTools: mcpTools, callTool, close } = await getMcpTools();
 
-      // Combine client-side tools with MCP tools
-      const combinedTools: ToolSet = {
-        ...allTools,
-        ...mcpTools,
-      };
+      // Build combined tools list (client-side + MCP)
+      const clientTools = buildClientSideAnthropicTools();
+      const combinedTools = [...clientTools, ...mcpTools];
 
-      console.log("Available tools:", Object.keys(combinedTools));
+      console.log("Available tools:", combinedTools.map((t) => t.name));
 
-      // Use streamText with automatic tool execution via stopWhen
-      const result = streamText({
-        model: anthropic(MODEL),
-        system: buildSystemPrompt(),
-        messages: modelMessages,
-        tools: combinedTools,
-        stopWhen: stepCountIs(5), // Allow up to 5 tool execution loops
-      });
+      // Run the agentic loop
+      await runAgenticLoop(
+        anthropic,
+        anthropicMessages,
+        combinedTools,
+        callTool,
+        responseStream,
+      );
 
-      // Stream the response using AI SDK UI Message Stream Protocol
-      const uiStream = result.toUIMessageStream();
-
-      for await (const chunk of uiStream) {
-        // Use SSE format: "data: <json>\n\n"
-        responseStream.write(`data: ${JSON.stringify(chunk)}\n\n`);
-      }
-
-      // Close MCP client connection
-      await closeMcpClient(mcpClient);
-
+      await close();
       responseStream.end();
     } catch (error) {
       console.error("Streaming error:", error);
-
       const errorMessage =
         error instanceof Error ? error.message : "An unexpected error occurred";
-
-      // Try to send error if stream hasn't ended
       try {
-        responseStream.write(JSON.stringify({ error: errorMessage }));
+        writeSSE(responseStream, { type: "error", error: errorMessage });
         responseStream.end();
       } catch {
         // Stream may already be closed

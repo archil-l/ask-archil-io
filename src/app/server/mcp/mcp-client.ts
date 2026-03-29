@@ -98,7 +98,6 @@ export async function getMcpTools(): Promise<McpToolsClient> {
         type: "object",
         properties: {},
       },
-      _meta: t._meta,
     }));
 
     // Build lookup: toolName → resourceUri from _meta

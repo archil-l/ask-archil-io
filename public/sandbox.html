@@ -34,22 +34,18 @@
         if (innerIframe) return;
         innerIframe = document.createElement('iframe');
         innerIframe.style = 'width:100%; height:100%; border:none;';
-        innerIframe.src = 'about:blank';
         document.body.appendChild(innerIframe);
 
-        innerIframe.addEventListener('load', function () {
-          const doc =
-            innerIframe.contentDocument ||
-            (innerIframe.contentWindow && innerIframe.contentWindow.document);
-          if (!doc) return;
-          try {
-            doc.open();
-            doc.write(html);
-            doc.close();
-          } catch (e) {
-            console.error('[sandbox] Failed to write HTML to inner iframe:', e);
-          }
-        });
+        // contentDocument is immediately available on a newly appended iframe —
+        // no need to wait for a load event (which can fire before the listener attaches)
+        const doc = innerIframe.contentDocument;
+        try {
+          doc.open();
+          doc.write(html);
+          doc.close();
+        } catch (e) {
+          console.error('[sandbox] Failed to write HTML to inner iframe:', e);
+        }
       }
 
       window.addEventListener('message', function (event) {

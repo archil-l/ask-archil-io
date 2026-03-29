@@ -53,11 +53,16 @@ export type McpToolsClient = {
 export async function getMcpTools(): Promise<McpToolsClient> {
   if (!MCP_SERVER_URL) {
     console.log("MCP_SERVER_URL not set, skipping MCP tools");
-    return { anthropicTools: [], callTool: async () => ({}), close: async () => {} };
+    return {
+      anthropicTools: [],
+      callTool: async () => ({}),
+      close: async () => {},
+    };
   }
 
   try {
-    const { accessKeyId, secretAccessKey, sessionToken } = await getCredentials();
+    const { accessKeyId, secretAccessKey, sessionToken } =
+      await getCredentials();
 
     const signedFetch = createSignedFetcher({
       service: "lambda",
@@ -74,11 +79,17 @@ export async function getMcpTools(): Promise<McpToolsClient> {
       { fetch: signedFetch },
     );
 
-    const client = new Client({ name: "ask-archil-mcp-client", version: "1.0.0" });
+    const client = new Client({
+      name: "ask-archil-mcp-client",
+      version: "1.0.0",
+    });
     await client.connect(transport);
 
     const { tools } = await client.listTools();
-    console.log("MCP tools loaded:", tools.map((t) => t.name));
+    console.log(
+      "MCP tools loaded:",
+      tools.map((t) => t.name),
+    );
 
     const anthropicTools: Anthropic.Tool[] = tools.map((t) => ({
       name: t.name,
@@ -87,18 +98,54 @@ export async function getMcpTools(): Promise<McpToolsClient> {
         type: "object",
         properties: {},
       },
+      _meta: t._meta,
     }));
+
+    // Build lookup: toolName → resourceUri from _meta
+    const toolMetaMap = new Map<string, string>();
+    for (const t of tools) {
+      const resourceUri = (t._meta as any)?.ui?.resourceUri;
+      if (typeof resourceUri === "string") {
+        toolMetaMap.set(t.name, resourceUri);
+      }
+    }
 
     return {
       anthropicTools,
       callTool: async (name: string, input: Record<string, unknown>) => {
-        const result = await client.callTool({ name, arguments: input });
+        const result = await client.callTool({ name, arguments: input }) as {
+          content: Array<Record<string, unknown>>;
+          structuredContent?: unknown;
+          isError?: boolean;
+        };
+
+        // If this tool has an associated UI resource, fetch the HTML and inject it
+        const resourceUri = toolMetaMap.get(name);
+        if (resourceUri) {
+          try {
+            const resourceResult = await client.readResource({ uri: resourceUri });
+            const first = resourceResult.contents?.[0];
+            if (first && "text" in first) {
+              result.content.push({
+                type: "resource",
+                resource: { uri: resourceUri, mimeType: "text/html", text: first.text },
+              } as any);
+            }
+          } catch (err) {
+            console.error("Failed to read UI resource:", resourceUri, err);
+          }
+        }
+
         return result;
       },
       close: () => client.close(),
     };
   } catch (error) {
     console.error("Failed to connect to MCP server:", error);
-    return { anthropicTools: [], callTool: async () => ({}), close: async () => {} };
+    return {
+      anthropicTools: [],
+      callTool: async () => ({}),
+      close: async () => {},
+    };
   }
 }

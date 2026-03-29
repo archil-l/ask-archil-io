@@ -28,100 +28,56 @@
   </head>
   <body>
     <script>
-      const params = new URLSearchParams(location.search);
-      const contentType = params.get('contentType');
-      const target = params.get('url');
+      let innerIframe = null;
 
-      // Validate that the URL is a valid HTTP or HTTPS URL
-      function isValidHttpUrl(string) {
-        try {
-          const url = new URL(string);
-          return url.protocol === 'http:' || url.protocol === 'https:';
-        } catch (error) {
-          return false;
-        }
-      }
+      function renderHtmlInIframe(html) {
+        if (innerIframe) return;
+        innerIframe = document.createElement('iframe');
+        innerIframe.style = 'width:100%; height:100%; border:none;';
+        innerIframe.src = 'about:blank';
+        document.body.appendChild(innerIframe);
 
-      if (contentType === 'rawhtml') {
-        // Double-iframe raw HTML mode (HTML sent via postMessage)
-        const inner = document.createElement('iframe');
-
-        inner.id = 'root';
-        let pendingHtml = null;
-
-        // Helper function to write HTML using document.write
-        const renderHtmlInIframe = (markup) => {
-          const doc = inner.contentDocument || inner.contentWindow?.document;
-          if (!doc) return false;
+        innerIframe.addEventListener('load', function () {
+          const doc =
+            innerIframe.contentDocument ||
+            (innerIframe.contentWindow && innerIframe.contentWindow.document);
+          if (!doc) return;
           try {
             doc.open();
-            doc.write(markup);
+            doc.write(html);
             doc.close();
-            return true;
-          } catch (error) {
-            console.error('Failed to write HTML to iframe:', error);
-            return false;
-          }
-        };
-
-        // Retry writing pending HTML when iframe finishes loading
-        inner.addEventListener('load', () => {
-          if (pendingHtml !== null && renderHtmlInIframe(pendingHtml)) {
-            pendingHtml = null;
+          } catch (e) {
+            console.error('[sandbox] Failed to write HTML to inner iframe:', e);
           }
         });
-
-        inner.style = 'width:100%; height:100%; border:none;';
-        // Set src to about:blank so browser initializes contentDocument
-        inner.src = 'about:blank';
-        document.body.appendChild(inner);
-
-        // Wait for HTML content from parent
-        window.addEventListener('message', (event) => {
-          if (event.source === window.parent && event.data && event.data.type === 'ui-html-content') {
-            const payload = event.data.payload || {};
-            const html = payload.html;
-            if (typeof html === 'string') {
-              // Try to write immediately; if contentDocument isn't ready, queue for retry
-              if (!renderHtmlInIframe(html)) {
-                pendingHtml = html;
-              }
-            }
-          } else if (event.source === window.parent) {
-            // Forward other messages from parent to inner iframe
-            if (inner && inner.contentWindow) {
-              inner.contentWindow.postMessage(event.data, '*');
-            }
-          } else if (event.source === inner.contentWindow) {
-            // Relay messages from inner to parent
-            window.parent.postMessage(event.data, '*');
-          }
-        });
-
-        // Notify parent that proxy is ready to receive HTML (distinct event)
-        window.parent.postMessage({ type: 'ui-proxy-iframe-ready' }, '*');
-      } else if (target) {
-        if (!isValidHttpUrl(target)) {
-          document.body.textContent = 'Error: invalid URL. Only HTTP and HTTPS URLs are allowed.';
-        } else {
-          const inner = document.createElement('iframe');
-          inner.src = target;
-          inner.style = 'width:100%; height:100%; border:none;';
-          inner.setAttribute('sandbox', 'allow-same-origin allow-scripts');
-          document.body.appendChild(inner);
-          const urlOrigin = new URL(target).origin;
-
-          window.addEventListener('message', (event) => {
-            if (event.source === window.parent) {
-              inner.contentWindow.postMessage(event.data, urlOrigin);
-            } else if (event.source === inner.contentWindow) {
-              window.parent.postMessage(event.data, '*');
-            }
-          });
-        }
-      } else {
-        document.body.textContent = 'Error: missing url or html parameter';
       }
+
+      window.addEventListener('message', function (event) {
+        if (event.source === window.parent) {
+          const data = event.data;
+          if (
+            data &&
+            data.method === 'ui/notifications/sandbox-resource-ready' &&
+            data.params &&
+            typeof data.params.html === 'string'
+          ) {
+            // Host is sending the app HTML — render it in the inner iframe
+            renderHtmlInIframe(data.params.html);
+          } else if (innerIframe && innerIframe.contentWindow) {
+            // Forward all other host messages to the inner iframe
+            innerIframe.contentWindow.postMessage(event.data, '*');
+          }
+        } else if (innerIframe && event.source === innerIframe.contentWindow) {
+          // Relay messages from inner iframe back to host
+          window.parent.postMessage(event.data, '*');
+        }
+      });
+
+      // Signal to host that proxy is ready
+      window.parent.postMessage(
+        { method: 'ui/notifications/sandbox-proxy-ready' },
+        '*'
+      );
     </script>
   </body>
 </html>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { isUIResource } from "@mcp-ui/client";
 import {
+  RESOURCE_MIME_TYPE,
   AppBridge,
   PostMessageTransport,
   type McpUiSandboxProxyReadyNotification,
@@ -15,6 +15,24 @@ const log = {
   warn: console.warn.bind(console, "[MCP-UI]"),
   error: console.error.bind(console, "[MCP-UI]"),
 };
+
+/**
+ * Checks if a content item is a UI resource (MCP App).
+ * Replaces the @mcp-ui/client isUIResource function.
+ */
+function isUIResource(
+  item: unknown,
+): item is {
+  type: "resource";
+  resource: { mimeType?: string; text?: string; blob?: string };
+} {
+  if (!item || typeof item !== "object") return false;
+  const obj = item as Record<string, unknown>;
+  if (obj.type !== "resource") return false;
+  const resource = obj.resource as Record<string, unknown> | undefined;
+  if (!resource || typeof resource !== "object") return false;
+  return resource.mimeType === RESOURCE_MIME_TYPE;
+}
 
 // Implementation info for AppBridge
 const IMPLEMENTATION = { name: "AskArchil Host", version: "1.0.0" };

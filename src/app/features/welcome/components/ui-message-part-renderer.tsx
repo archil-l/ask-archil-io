@@ -93,9 +93,7 @@ export function UIMessagePartRenderer({
     const hasOutput = state === "output-available" || state === "output-error";
 
     // Resolve tool name
-    const toolName = isDynamic
-      ? dynPart!.toolName
-      : staticPart!.type.slice(5);
+    const toolName = isDynamic ? dynPart!.toolName : staticPart!.type.slice(5);
 
     // Custom UIs for known client-side tools
     if (toolName === "toggleTheme" && dynPart) {
@@ -136,10 +134,7 @@ export function UIMessagePartRenderer({
 
     if (toolName === "showResume" && dynPart) {
       return (
-        <ShowResumeToolUI
-          key={`${messageId}-tool-${index}`}
-          tool={dynPart}
-        />
+        <ShowResumeToolUI key={`${messageId}-tool-${index}`} tool={dynPart} />
       );
     }
 
@@ -179,10 +174,7 @@ export function UIMessagePartRenderer({
             <ToolInput input={part.input} />
           )}
           {hasOutput && (
-            <ToolOutput
-              output={part.output}
-              errorText={part.errorText || ""}
-            />
+            <ToolOutput output={part.output} errorText={part.errorText || ""} />
           )}
         </ToolContent>
       </Tool>

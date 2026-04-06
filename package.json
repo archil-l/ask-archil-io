@@ -24,6 +24,7 @@
     "@aws-sdk/client-secrets-manager": "3.1018.0",
     "@marsidev/react-turnstile": "^1.4.2",
     "@mcp-ui/client": "^7.0.0",
+    "@modelcontextprotocol/ext-apps": "^1.5.0",
     "@modelcontextprotocol/sdk": "^1.28.0",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",

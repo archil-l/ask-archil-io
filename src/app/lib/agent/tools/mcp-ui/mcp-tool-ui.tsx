@@ -20,9 +20,7 @@ const log = {
  * Checks if a content item is a UI resource (MCP App).
  * Replaces the @mcp-ui/client isUIResource function.
  */
-function isUIResource(
-  item: unknown,
-): item is {
+function isUIResource(item: unknown): item is {
   type: "resource";
   resource: { mimeType?: string; text?: string; blob?: string };
 } {
@@ -125,7 +123,7 @@ export function McpToolUI({ tool, html }: McpToolUIProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const sandboxUrl = new URL("/sandbox.html", window.location.origin);
+  const sandboxUrl = new URL("/sandbox", window.location.origin);
 
   useEffect(() => {
     const iframe = iframeRef.current;

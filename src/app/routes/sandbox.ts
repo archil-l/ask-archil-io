@@ -175,19 +175,8 @@ function generateSandboxHtml(hostOrigin: string): string {
             }
             
             if (typeof html === "string") {
-              const doc = inner.contentDocument || inner.contentWindow?.document;
-              if (doc) {
-                try {
-                  doc.open();
-                  doc.write(html);
-                  doc.close();
-                } catch (e) {
-                  console.error("[Sandbox] Failed to write HTML:", e);
-                  inner.srcdoc = html;
-                }
-              } else {
-                inner.srcdoc = html;
-              }
+              // Use srcdoc — document.write() silently drops <script type="module">
+              inner.srcdoc = html;
             }
           } else if (inner.contentWindow) {
             inner.contentWindow.postMessage(event.data, "*");

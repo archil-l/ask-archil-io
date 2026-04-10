@@ -64,8 +64,9 @@ function buildCspHeader(csp?: McpUiResourceCsp): string {
 /**
  * Generate the sandbox HTML page.
  * This includes the sandbox client script that handles message relay.
+ * The host origin is baked in server-side to avoid trusting a client-supplied param.
  */
-function generateSandboxHtml(): string {
+function generateSandboxHtml(hostOrigin: string): string {
   return `<!DOCTYPE html>
 <html>
   <head>
@@ -109,13 +110,11 @@ function generateSandboxHtml(): string {
         throw new Error("This file is only to be used in an iframe sandbox.");
       }
       
-      // Validate referrer
-      if (!document.referrer) {
-        throw new Error("No referrer, cannot validate embedding site.");
-      }
-      
-      const EXPECTED_HOST_ORIGIN = new URL(document.referrer).origin;
-      const OWN_ORIGIN = new URL(window.location.href).origin;
+      // Host origin is baked in server-side (referrer unavailable in sandboxed null-origin iframes)
+      const EXPECTED_HOST_ORIGIN = ${JSON.stringify(hostOrigin)};
+
+      // Own origin is always "null" for sandboxed iframes without allow-same-origin
+      const OWN_ORIGIN = "null";
       
       // Security self-test
       try {
@@ -230,8 +229,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Build CSP header
   const cspHeader = buildCspHeader(cspConfig);
 
+  // Derive the allowed host origin server-side (same origin as this sandbox route)
+  const hostOrigin = url.origin;
+
   // Generate and return the HTML
-  const html = generateSandboxHtml();
+  const html = generateSandboxHtml(hostOrigin);
 
   return new Response(html, {
     status: 200,

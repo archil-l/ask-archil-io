@@ -71,7 +71,7 @@ function loadSandboxProxy(
   // Prevent reload if already loaded
   if (iframe.src) return Promise.resolve(false);
 
-  iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms");
+  iframe.setAttribute("sandbox", "allow-scripts allow-forms");
 
   const readyNotification: McpUiSandboxProxyReadyNotification["method"] =
     "ui/notifications/sandbox-proxy-ready";

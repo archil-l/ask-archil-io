@@ -48,8 +48,8 @@ function buildCspHeader(csp?: McpUiResourceCsp): string {
     `media-src 'self' data: blob: ${resourceDomains}`.trim(),
     // Network requests: same-origin + specified API/tile domains
     `connect-src 'self' ${connectDomains}`.trim(),
-    // Workers: same-origin + blob (dynamic workers) + specified domains
-    `worker-src 'self' blob: ${resourceDomains}`.trim(),
+    // Workers: same-origin + blob + data (viteSingleFile inlines workers as data: URIs) + specified domains
+    `worker-src 'self' blob: data: ${resourceDomains}`.trim(),
     // Nested iframes: use frameDomains if provided, otherwise block all
     frameDomains ? `frame-src ${frameDomains}` : "frame-src 'none'",
     // Plugins: always blocked (defense in depth)

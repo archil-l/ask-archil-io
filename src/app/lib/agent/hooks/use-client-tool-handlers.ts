@@ -1,14 +1,10 @@
-import { AbstractChat } from "ai";
+import { AddToolOutputFn } from "~/lib/message-schema";
 import { useThemeContext } from "~/contexts/theme-context";
-import { AgentUIMessage } from "~/lib/message-schema";
 import { createToggleThemeHandler } from "~/lib/agent/tools/toggle-theme";
 import { createCheckThemeHandler } from "~/lib/agent/tools/check-theme";
 import { createShowResumeHandler } from "~/lib/agent/tools/show-resume";
 
-/**
- * Type for the addToolOutput function derived from AI SDK's AbstractChat.
- */
-export type AddToolOutputFn = AbstractChat<AgentUIMessage>["addToolOutput"];
+export type { AddToolOutputFn };
 
 /**
  * Generic tool handler type for client-side tools.

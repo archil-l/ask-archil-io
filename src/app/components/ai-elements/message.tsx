@@ -1,6 +1,6 @@
 "use client";
 
-import type { UIMessage } from "ai";
+import type { AgentUIMessage } from "~/lib/message-schema";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
 
 import { Button } from "~/components/ui/button";
@@ -29,7 +29,7 @@ import {
 import { Streamdown } from "streamdown";
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
-  from: UIMessage["role"];
+  from: AgentUIMessage["role"];
 };
 
 export const Message = ({ className, from, ...props }: MessageProps) => (
@@ -52,7 +52,8 @@ export const MessageContent = ({
 }: MessageContentProps) => (
   <div
     className={cn(
-      "is-user:dark flex w-fit min-w-0 max-w-full flex-col gap-2 overflow-hidden text-sm",
+      "is-user:dark flex min-w-0 max-w-full flex-col gap-2 text-sm",
+      "group-[.is-user]:w-fit group-[.is-user]:overflow-hidden",
       "group-[.is-user]:ml-auto group-[.is-user]:rounded-lg group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground",
       "group-[.is-assistant]:text-foreground",
       className,

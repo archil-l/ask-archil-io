@@ -1,6 +1,6 @@
 "use client";
 
-import type { DynamicToolUIPart } from "ai";
+import type { DynamicToolUIPart } from "~/lib/message-schema";
 import {
   WebPreview,
   WebPreviewBody,

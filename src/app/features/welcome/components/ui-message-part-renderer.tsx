@@ -1,24 +1,22 @@
 "use client";
 
 import type {
-  UIMessagePart,
-  ReasoningUIPart,
-  ToolUIPart,
-  DynamicToolUIPart,
+  AgentUIMessagePart,
   TextUIPart,
+  ReasoningUIPart,
+  DynamicToolUIPart,
+  ToolUIPart,
   FileUIPart,
   SourceUrlUIPart,
   SourceDocumentUIPart,
   DataUIPart,
-  UIDataTypes,
-  UITools,
-} from "ai";
+} from "~/lib/message-schema";
 import {
+  isTextUIPart,
   isReasoningUIPart,
   isToolUIPart,
-  isTextUIPart,
   isFileUIPart,
-} from "ai";
+} from "~/lib/message-schema";
 import { MessageResponse } from "~/components/ai-elements/message";
 import {
   Reasoning,
@@ -45,20 +43,8 @@ import {
   extractUIResourceHtml,
 } from "~/lib/agent/tools/mcp-ui/mcp-tool-ui";
 
-// Helper to extract tool name from tool part
-function getToolName(toolPart: ToolUIPart | DynamicToolUIPart): string | null {
-  if (toolPart.type === "dynamic-tool") {
-    return (toolPart as DynamicToolUIPart).toolName;
-  }
-  // For static tools, the type is "tool-<toolName>"
-  if (toolPart.type.startsWith("tool-")) {
-    return toolPart.type.slice(5);
-  }
-  return null;
-}
-
 interface UIMessagePartRendererProps {
-  part: UIMessagePart<UIDataTypes, UITools>;
+  part: AgentUIMessagePart;
   index: number;
   messageId: string;
   isStreaming: boolean;
@@ -70,9 +56,9 @@ export function UIMessagePartRenderer({
   messageId,
   isStreaming,
 }: UIMessagePartRendererProps) {
-  // Handle text parts
   console.log(part);
 
+  // Handle text parts
   if (isTextUIPart(part)) {
     const textPart = part as TextUIPart;
     return (
@@ -97,110 +83,98 @@ export function UIMessagePartRenderer({
     );
   }
 
-  // Handle tool parts (both static and dynamic)
+  // Handle tool parts (both dynamic-tool and legacy tool-* types)
   if (isToolUIPart(part)) {
-    const toolPart = part as ToolUIPart | DynamicToolUIPart;
-    const state = toolPart.state || "input-available";
+    const isDynamic = part.type === "dynamic-tool";
+    const dynPart = isDynamic ? (part as DynamicToolUIPart) : null;
+    const staticPart = !isDynamic ? (part as ToolUIPart) : null;
+    const state = part.state || "input-available";
     const toolIsStreaming = state === "input-streaming";
     const hasOutput = state === "output-available" || state === "output-error";
 
-    // Handle custom tool UIs for specific tools
-    // Extract tool name from either dynamic or static tool parts
-    const toolName = getToolName(toolPart);
+    // Resolve tool name
+    const toolName = isDynamic ? dynPart!.toolName : staticPart!.type.slice(5);
 
-    // Render toggleTheme UI immediately (during input-available state, not just after output)
-    if (toolName === "toggleTheme") {
+    // Custom UIs for known client-side tools
+    if (toolName === "toggleTheme" && dynPart) {
       return (
         <ToggleThemeToolUI
           key={`${messageId}-tool-${index}`}
-          tool={toolPart as DynamicToolUIPart}
-          theme={(toolPart?.output as ThemeToggleOutputType)?.newTheme}
+          tool={dynPart}
+          theme={(dynPart.output as ThemeToggleOutputType)?.newTheme}
         />
       );
     }
 
-    // Render checkTheme UI
-    if (toolName === "checkTheme") {
+    if (toolName === "checkTheme" && dynPart) {
       return (
         <CheckThemeToolUI
           key={`${messageId}-tool-${index}`}
-          tool={toolPart as DynamicToolUIPart}
-          theme={(toolPart?.output as ThemeCheckOutputType)?.currentTheme}
+          tool={dynPart}
+          theme={(dynPart.output as ThemeCheckOutputType)?.currentTheme}
         />
       );
     }
 
-    // Render webpreview UI
-    if (toolName === "webpreview") {
-      const input = (toolPart as DynamicToolUIPart).input;
+    if (toolName === "webpreview" && dynPart) {
       const url =
-        input && typeof input === "object" && "url" in input
-          ? (input as any).url
+        dynPart.input &&
+        typeof dynPart.input === "object" &&
+        "url" in dynPart.input
+          ? (dynPart.input as any).url
           : "";
       return (
         <WebPreviewToolUI
           key={`${messageId}-tool-${index}`}
-          tool={toolPart as DynamicToolUIPart}
+          tool={dynPart}
           url={url}
         />
       );
     }
 
-    // Render showResume UI
-    if (toolName === "showResume") {
+    if (toolName === "showResume" && dynPart) {
       return (
-        <ShowResumeToolUI
-          key={`${messageId}-tool-${index}`}
-          tool={toolPart as DynamicToolUIPart}
-        />
+        <ShowResumeToolUI key={`${messageId}-tool-${index}`} tool={dynPart} />
       );
     }
 
-    // Render MCP tool UI if the output contains a UIResource
-    if (
-      toolPart.type === "dynamic-tool" &&
-      toolPart.state === "output-available"
-    ) {
-      const uiHtml = extractUIResourceHtml(toolPart.output);
+    // MCP tool with UIResource HTML
+    if (dynPart && dynPart.state === "output-available") {
+      const uiHtml = extractUIResourceHtml(dynPart.output);
       if (uiHtml) {
         return (
           <McpToolUI
             key={`${messageId}-tool-${index}`}
-            tool={toolPart as DynamicToolUIPart}
+            tool={dynPart}
             html={uiHtml}
           />
         );
       }
     }
 
-    const toolHeaderProps =
-      toolPart.type === "dynamic-tool"
-        ? {
-            title:
-              (toolPart as DynamicToolUIPart).title ||
-              (toolPart as DynamicToolUIPart).toolName,
-            type: toolPart.type,
-            state,
-            toolName: (toolPart as DynamicToolUIPart).toolName,
-          }
-        : {
-            title: (toolPart as ToolUIPart).title || toolPart.type.slice(5),
-            type: toolPart.type,
-            state,
-          };
+    // Generic tool rendering
+    const toolHeaderProps = isDynamic
+      ? {
+          title: dynPart!.title || dynPart!.toolName,
+          type: "dynamic-tool" as const,
+          state,
+          toolName: dynPart!.toolName,
+        }
+      : {
+          title: staticPart!.title || staticPart!.type.slice(5),
+          type: staticPart!.type,
+          state,
+        };
 
     return (
       <Tool key={`${messageId}-tool-${index}`}>
         <ToolHeader {...(toolHeaderProps as any)} />
         <ToolContent>
-          {(toolPart.input !== undefined || toolIsStreaming) && (
-            <ToolInput input={toolPart.input} />
+          {(part.input !== undefined || toolIsStreaming) && (
+            <ToolInput input={part.input} />
           )}
           {hasOutput && (
-            <ToolOutput
-              output={toolPart.output}
-              errorText={toolPart.errorText || ""}
-            />
+            <ToolOutput output={part.output} errorText={part.errorText || ""} />
           )}
         </ToolContent>
       </Tool>
@@ -279,7 +253,7 @@ export function UIMessagePartRenderer({
 
   // Handle data parts
   if ("type" in part && part.type.startsWith("data-")) {
-    const dataPart = part as DataUIPart<UIDataTypes>;
+    const dataPart = part as DataUIPart;
     return (
       <div
         key={`${messageId}-data-${index}`}

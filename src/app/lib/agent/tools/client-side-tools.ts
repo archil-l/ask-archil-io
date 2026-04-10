@@ -1,5 +1,12 @@
-import { tool } from "ai";
 import z from "zod";
+
+function tool<I extends z.ZodType>(def: {
+  description: string;
+  inputSchema: I;
+  outputSchema?: z.ZodType;
+}) {
+  return def;
+}
 
 /**
  * toggleThemeTool - Toggle between light and dark theme

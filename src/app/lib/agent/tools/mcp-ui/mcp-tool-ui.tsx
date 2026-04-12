@@ -201,6 +201,9 @@ export function McpToolUI({ tool, html, permissions }: McpToolUIProps) {
             openLinks: {},
             // Advertise server tools capability so the app knows it can call tools
             serverTools: {},
+            // Advertise download capability so the app uses our host-side handler
+            // (downloads from inside a sandboxed iframe are blocked by the browser)
+            downloadFile: {},
           },
           {
             hostContext: {
@@ -243,6 +246,42 @@ export function McpToolUI({ tool, html, permissions }: McpToolUIProps) {
         appBridge.onopenlink = async (params) => {
           log.info("Open link request:", params);
           window.open(params.url, "_blank", "noopener,noreferrer");
+          return {};
+        };
+
+        // Handle file downloads from the app — sandboxed iframes can't trigger
+        // downloads directly, so the host page does it on their behalf.
+        appBridge.ondownloadfile = async (params) => {
+          log.info("Download file request:", params);
+          for (const item of params.contents) {
+            if (item.type === "resource" && "resource" in item) {
+              const res = item.resource as {
+                uri: string;
+                mimeType?: string;
+                blob?: string;
+                text?: string;
+              };
+              const filename = res.uri.split("/").pop() ?? "download";
+              const mimeType = res.mimeType ?? "application/octet-stream";
+              let href: string;
+              if (res.blob) {
+                href = `data:${mimeType};base64,${res.blob}`;
+              } else if (res.text) {
+                const bytes = new TextEncoder().encode(res.text);
+                const b64 = btoa(String.fromCharCode(...bytes));
+                href = `data:${mimeType};base64,${b64}`;
+              } else {
+                continue;
+              }
+              const link = document.createElement("a");
+              link.href = href;
+              link.download = filename;
+              link.style.display = "none";
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }
+          }
           return {};
         };
 

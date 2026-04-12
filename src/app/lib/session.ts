@@ -58,14 +58,29 @@ export function getConversationHistory(): AgentUIMessage[] {
 }
 
 /**
- * Save conversation history to localStorage
+ * Save conversation history to localStorage.
+ * If the payload exceeds the quota, drops the oldest messages and retries
+ * until it fits (keeping at least the last 2 messages).
  */
 export function saveConversationHistory(messages: AgentUIMessage[]): void {
   if (typeof window === "undefined") {
     return;
   }
 
-  localStorage.setItem(CONVERSATION_KEY, JSON.stringify(messages));
+  let toSave = messages;
+  while (toSave.length > 0) {
+    try {
+      localStorage.setItem(CONVERSATION_KEY, JSON.stringify(toSave));
+      return;
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "QuotaExceededError" && toSave.length > 2) {
+        // Drop the oldest message and retry
+        toSave = toSave.slice(1);
+      } else {
+        return;
+      }
+    }
+  }
 }
 
 /**

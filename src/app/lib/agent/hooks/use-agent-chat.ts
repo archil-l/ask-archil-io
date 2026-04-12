@@ -344,13 +344,9 @@ export function useAgentChat(options: UseAgentChatOptions): AgentChatResult {
   const sendMessage = useCallback(
     ({ text, metadata }: { text: string; metadata?: AgentMetadata }) => {
       const userMsg = createUserMessage(text, metadata);
-
-      setMessages((prev) => {
-        const next = [...prev, userMsg];
-        // doStream is called with the next messages state
-        doStream(next);
-        return next;
-      });
+      const next = [...messagesRef.current, userMsg];
+      setMessages(next);
+      doStream(next);
     },
     [doStream],
   );

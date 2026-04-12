@@ -12,11 +12,13 @@
     "build": "npx @react-router/dev build",
     "release": "rm -rf dist && npm run build && npm run release:streaming && npm run cdk:build && npx cdk synth",
     "release:streaming": "mkdir -p dist/streaming-lambda && node esbuild.config.js",
+    "release:mcp-proxy": "mkdir -p dist/mcp-proxy-lambda && node esbuild.config.js",
     "dev": "npx @react-router/dev dev",
     "start": "npx @react-router/serve ./dist/server/index.js",
     "clean": "rm -rf dist node_modules",
     "cdk:build": "tsc -p cdk/tsconfig.json",
-    "cdk:deploy:streaming": "npm run release:streaming && npm run cdk:build && npx cdk deploy ask-archil-io-llm-stream-prod --require-approval never"
+    "cdk:deploy:streaming": "npm run release:streaming && npm run cdk:build && npx cdk deploy ask-archil-io-llm-stream-prod --require-approval never",
+    "cdk:deploy:mcp-proxy": "npm run release:mcp-proxy && npm run cdk:build && npx cdk deploy ask-archil-io-mcp-proxy-prod --require-approval never"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
@@ -93,7 +95,7 @@
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/morgan": "^1.9.9",
-    "@types/node": "^24.10.13",
+    "@types/node": "^24.12.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.42.0",

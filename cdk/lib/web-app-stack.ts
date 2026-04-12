@@ -17,19 +17,21 @@ import type { EnvironmentConfig } from "../config/environments.js";
 import { SubdomainStack } from "./subdomain-stack.js";
 import { SecretsStack } from "./secrets-stack.js";
 import { LLMStreamStack } from "./llm-stream-stack.js";
+import { McpProxyStack } from "./mcp-proxy-stack.js";
 
 interface WebAppStackProps extends cdk.StackProps {
   envConfig: EnvironmentConfig;
   subdomainStack?: SubdomainStack;
   secretsStack: SecretsStack;
   llmStreamStack: LLMStreamStack;
+  mcpProxyStack: McpProxyStack;
 }
 
 export class WebAppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: WebAppStackProps) {
     super(scope, id, props);
 
-    const { envConfig, secretsStack, llmStreamStack } = props;
+    const { envConfig, secretsStack, llmStreamStack, mcpProxyStack } = props;
 
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -163,6 +165,7 @@ export class WebAppStack extends cdk.Stack {
         JWT_SECRET_ARN: secretsStack.jwtSecretArn,
         JWT_EXPIRY_HOURS: "1",
         LLM_STREAM_URL: llmStreamStack.functionUrl.url,
+        MCP_PROXY_URL: mcpProxyStack.functionUrl.url,
       },
       logRetention: logRetentionDays,
     });

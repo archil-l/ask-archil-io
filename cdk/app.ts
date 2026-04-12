@@ -5,6 +5,7 @@ import { WebAppStack } from "./lib/web-app-stack.js";
 import { GitHubOidcStack } from "./lib/github-oidc-stack.js";
 import { SubdomainStack } from "./lib/subdomain-stack.js";
 import { LLMStreamStack } from "./lib/llm-stream-stack.js";
+import { McpProxyStack } from "./lib/mcp-proxy-stack.js";
 import { SecretsStack } from "./lib/secrets-stack.js";
 import { getEnvironmentConfig, Stage } from "./config/environments.js";
 
@@ -77,12 +78,30 @@ const llmStreamStack = new LLMStreamStack(
 // Ensure secrets stack is created before LLM stream stack
 llmStreamStack.addDependency(secretsStack);
 
+// MCP Proxy Stack - dedicated Lambda for client-side MCP access
+const mcpProxyStack = new McpProxyStack(
+  app,
+  `ask-archil-io-mcp-proxy-${envConfig.stage}`,
+  {
+    envConfig,
+    secretsStack,
+    env: {
+      account: envConfig.accountId,
+      region: envConfig.region,
+    },
+  },
+);
+
+// Ensure secrets stack is created before MCP proxy stack
+mcpProxyStack.addDependency(secretsStack);
+
 // Application Stack - the actual web app
 const webAppStack = new WebAppStack(app, `ask-archil-io-${envConfig.stage}`, {
   envConfig,
   subdomainStack,
   secretsStack,
   llmStreamStack,
+  mcpProxyStack,
   env: {
     account: envConfig.accountId,
     region: envConfig.region,
@@ -93,3 +112,4 @@ const webAppStack = new WebAppStack(app, `ask-archil-io-${envConfig.stage}`, {
 webAppStack.addDependency(subdomainStack);
 webAppStack.addDependency(secretsStack);
 webAppStack.addDependency(llmStreamStack);
+webAppStack.addDependency(mcpProxyStack);

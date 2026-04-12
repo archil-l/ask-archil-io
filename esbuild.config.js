@@ -56,8 +56,24 @@ const buildStreaming = build({
   },
 });
 
-// Run both builds in parallel
-Promise.all([buildWebApp, buildStreaming])
+// Build MCP proxy Lambda
+const buildMcpProxy = build({
+  entryPoints: ["deployment/mcp-proxy.js"],
+  bundle: true,
+  outfile: "dist/mcp-proxy-lambda/mcp-proxy-handler.js",
+  platform: "node",
+  format: "cjs",
+  target: "node24",
+  external: commonExternal,
+  minify: true,
+  sourcemap: false,
+  define: {
+    "process.env.NODE_ENV": '"production"',
+  },
+});
+
+// Run all builds in parallel
+Promise.all([buildWebApp, buildStreaming, buildMcpProxy])
   .then(() => {
     // Create package.json files to mark the Lambda packages as CommonJS modules
     writeFileSync(
@@ -72,9 +88,19 @@ Promise.all([buildWebApp, buildStreaming])
       JSON.stringify({ type: "commonjs" }, null, 2),
     );
 
+    // Ensure mcp-proxy lambda directory exists
+    mkdirSync("dist/mcp-proxy-lambda", { recursive: true });
+    writeFileSync(
+      "dist/mcp-proxy-lambda/package.json",
+      JSON.stringify({ type: "commonjs" }, null, 2),
+    );
+
     console.log("✅ Built web app Lambda: dist/lambda-pkg/web-app-handler.js");
     console.log(
       "✅ Built streaming Lambda: dist/streaming-lambda/streaming-handler.js",
+    );
+    console.log(
+      "✅ Built MCP proxy Lambda: dist/mcp-proxy-lambda/mcp-proxy-handler.js",
     );
   })
   .catch((error) => {

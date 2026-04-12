@@ -6,9 +6,11 @@ import {
   AppBridge,
   PostMessageTransport,
   type McpUiSandboxProxyReadyNotification,
+  type McpUiResourcePermissions,
 } from "@modelcontextprotocol/ext-apps/app-bridge";
 import type { DynamicToolUIPart } from "~/lib/message-schema";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { useThemeContext } from "~/contexts/theme-context";
 
 const log = {
   info: console.log.bind(console, "[MCP-UI]"),
@@ -35,29 +37,55 @@ function isUIResource(item: unknown): item is {
 // Implementation info for AppBridge
 const IMPLEMENTATION = { name: "AskArchil Host", version: "1.0.0" };
 
+interface UIResourceData {
+  html: string;
+  permissions?: McpUiResourcePermissions;
+}
+
 /**
- * Extracts the HTML string from a CallToolResult that contains a UIResource.
- * Returns null if no UIResource is found.
+ * Extracts the HTML string and optional permissions from a CallToolResult
+ * that contains a UIResource. Returns null if no UIResource is found.
  */
-export function extractUIResourceHtml(output: unknown): string | null {
+export function extractUIResource(output: unknown): UIResourceData | null {
   if (!output || typeof output !== "object") return null;
   const result = output as { content?: unknown[] };
   if (!Array.isArray(result.content)) return null;
 
   for (const item of result.content) {
     if (isUIResource(item as Parameters<typeof isUIResource>[0])) {
-      const resource = (item as { resource: { text?: string; blob?: string } })
-        .resource;
-      if (resource.text) return resource.text;
-      if (resource.blob) return atob(resource.blob);
+      const resource = (
+        item as {
+          resource: {
+            text?: string;
+            blob?: string;
+            meta?: { permissions?: McpUiResourcePermissions };
+          };
+        }
+      ).resource;
+      const html = resource.text
+        ? resource.text
+        : resource.blob
+          ? atob(resource.blob)
+          : null;
+      if (!html) continue;
+      return { html, permissions: resource.meta?.permissions };
     }
   }
   return null;
 }
 
+/**
+ * Extracts just the HTML string from a CallToolResult UIResource.
+ * Used by ui-message-part-renderer to detect whether an MCP app UI is present.
+ */
+export function extractUIResourceHtml(output: unknown): string | null {
+  return extractUIResource(output)?.html ?? null;
+}
+
 interface McpToolUIProps {
   tool: DynamicToolUIPart;
   html: string;
+  permissions?: McpUiResourcePermissions;
 }
 
 /**
@@ -113,17 +141,36 @@ function hookInitializedCallback(appBridge: AppBridge): Promise<void> {
 }
 
 /**
+ * Fetches a fresh JWT token from the web app's /api/jwt-token endpoint.
+ */
+async function fetchJwtToken(): Promise<string> {
+  const response = await fetch("/api/jwt-token");
+  if (!response.ok) throw new Error("Failed to fetch JWT token");
+  const data = (await response.json()) as { token: string };
+  return data.token;
+}
+
+/**
  * Renders an MCP tool's UIResource in a sandboxed iframe using AppBridge
  * for proper communication with the MCP app.
  */
-export function McpToolUI({ tool, html }: McpToolUIProps) {
+export function McpToolUI({ tool, html, permissions }: McpToolUIProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const appBridgeRef = useRef<AppBridge | null>(null);
   const initializedRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { theme } = useThemeContext();
 
   const sandboxUrl = new URL("/sandbox", window.location.origin);
+
+  // Propagate theme changes to the MCP app after initialization
+  useEffect(() => {
+    const appBridge = appBridgeRef.current;
+    if (!appBridge || isLoading) return;
+    log.info("Sending theme change to MCP app:", theme);
+    appBridge.sendHostContextChange({ theme });
+  }, [theme, isLoading]);
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -135,6 +182,9 @@ export function McpToolUI({ tool, html }: McpToolUIProps) {
       try {
         log.info("Starting MCP App initialization...");
 
+        // Fetch JWT for tool call proxying
+        const jwtToken = await fetchJwtToken();
+
         // Wait for sandbox proxy to be ready (this also sets iframe.src)
         const ready = await loadSandboxProxy(iframe, sandboxUrl.href);
         if (!ready) {
@@ -142,13 +192,15 @@ export function McpToolUI({ tool, html }: McpToolUIProps) {
           return;
         }
 
-        // Create AppBridge - we pass null for client since we don't have an MCP client
-        // on the frontend. AppBridge is designed to work without it for tool result display.
+        // Create AppBridge with null client — we proxy tool calls manually
+        // via /api/mcp-tool using the JWT for auth.
         const appBridge = new AppBridge(
-          null as any, // No MCP client on frontend
+          null as any,
           IMPLEMENTATION,
           {
             openLinks: {},
+            // Advertise server tools capability so the app knows it can call tools
+            serverTools: {},
           },
           {
             hostContext: {
@@ -164,7 +216,30 @@ export function McpToolUI({ tool, html }: McpToolUIProps) {
         );
         appBridgeRef.current = appBridge;
 
-        // Set up handlers before connecting
+        // Proxy tool calls from the MCP app to the server via /api/mcp-tool
+        appBridge.oncalltool = async (params) => {
+          log.info("App requested tool call:", params.name, params.arguments);
+          const response = await fetch("/api/mcp-tool", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${jwtToken}`,
+            },
+            body: JSON.stringify({
+              name: params.name,
+              arguments: params.arguments ?? {},
+            }),
+          });
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(
+              (err as { error?: string }).error ?? `HTTP ${response.status}`,
+            );
+          }
+          return response.json() as Promise<CallToolResult>;
+        };
+
+        // Set up other handlers before connecting
         appBridge.onopenlink = async (params) => {
           log.info("Open link request:", params);
           window.open(params.url, "_blank", "noopener,noreferrer");
@@ -197,9 +272,10 @@ export function McpToolUI({ tool, html }: McpToolUIProps) {
           ),
         );
 
-        // Send HTML to sandbox
-        log.info("Sending HTML to sandbox...");
-        await appBridge.sendSandboxResourceReady({ html });
+        // Send HTML to sandbox along with any permissions declared in the tool's
+        // resource metadata (e.g. camera, microphone, geolocation).
+        log.info("Sending HTML to sandbox...", permissions ? `(permissions: ${JSON.stringify(permissions)})` : "");
+        await appBridge.sendSandboxResourceReady({ html, permissions });
 
         // Wait for app to initialize
         log.info("Waiting for MCP App to initialize...");
@@ -238,7 +314,7 @@ export function McpToolUI({ tool, html }: McpToolUIProps) {
         });
       }
     };
-  }, [html, tool.input, tool.output, sandboxUrl.href]);
+  }, [html, permissions, tool.input, tool.output, sandboxUrl.href]);
 
   return (
     <div

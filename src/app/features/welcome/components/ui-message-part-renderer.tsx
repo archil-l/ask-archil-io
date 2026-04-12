@@ -40,7 +40,7 @@ import { WebPreviewToolUI } from "~/lib/agent/tools/web-preview";
 import { ShowResumeToolUI } from "~/lib/agent/tools/show-resume";
 import {
   McpToolUI,
-  extractUIResourceHtml,
+  extractUIResource,
 } from "~/lib/agent/tools/mcp-ui/mcp-tool-ui";
 
 interface UIMessagePartRendererProps {
@@ -140,13 +140,14 @@ export function UIMessagePartRenderer({
 
     // MCP tool with UIResource HTML
     if (dynPart && dynPart.state === "output-available") {
-      const uiHtml = extractUIResourceHtml(dynPart.output);
-      if (uiHtml) {
+      const uiResource = extractUIResource(dynPart.output);
+      if (uiResource) {
         return (
           <McpToolUI
             key={`${messageId}-tool-${index}`}
             tool={dynPart}
-            html={uiHtml}
+            html={uiResource.html}
+            permissions={uiResource.permissions}
           />
         );
       }

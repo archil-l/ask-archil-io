@@ -46,6 +46,11 @@ class JWTService {
    * Fetch the JWT signing secret from AWS Secrets Manager
    */
   private async fetchSecret(): Promise<string> {
+    // Local dev shortcut: use raw secret directly, skip Secrets Manager
+    if (process.env.JWT_SECRET) {
+      return process.env.JWT_SECRET;
+    }
+
     try {
       const command = new GetSecretValueCommand({
         SecretId: this.secretArn,

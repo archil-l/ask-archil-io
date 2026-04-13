@@ -168,9 +168,9 @@ export class McpProxyStack extends cdk.Stack {
 
     // Outputs
     new cdk.CfnOutput(this, "mcp-proxy-function-url", {
-      description: "Lambda Function URL for MCP proxy",
+      description: "Lambda Function URL for MCP proxy (internal — use proxyEndpoint for public access)",
       value: this.functionUrl.url,
-      exportName: `mcp-proxy-function-url-${envConfig.stage}`,
+      // No exportName — this URL is no longer referenced cross-stack
     });
 
     new cdk.CfnOutput(this, "mcp-proxy-function-arn", {

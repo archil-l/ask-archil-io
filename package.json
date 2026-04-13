@@ -10,15 +10,15 @@
   "scripts": {
     "typecheck": "npx tsc --noEmit",
     "build": "npx @react-router/dev build",
-    "release": "rm -rf dist && npm run build && npm run release:streaming && npm run cdk:build && npx cdk synth",
+    "release": "rm -rf dist && npm run build && npm run release:streaming && npm run release:mcp-proxy && npm run cdk:build && npx cdk synth",
     "release:streaming": "mkdir -p dist/streaming-lambda && node esbuild.config.js",
     "release:mcp-proxy": "mkdir -p dist/mcp-proxy-lambda && node esbuild.config.js",
     "dev": "npx @react-router/dev dev",
     "start": "npx @react-router/serve ./dist/server/index.js",
     "clean": "rm -rf dist node_modules",
     "cdk:build": "tsc -p cdk/tsconfig.json",
-    "cdk:deploy:streaming": "npm run release:streaming && npm run cdk:build && npx cdk deploy ask-archil-io-llm-stream-prod --require-approval never",
-    "cdk:deploy:mcp-proxy": "npm run release:mcp-proxy && npm run cdk:build && npx cdk deploy ask-archil-io-mcp-proxy-prod --require-approval never"
+    "cdk:deploy:streaming": "npm run release:streaming && npm run cdk:build && npx cdk deploy ask-archil-io-llm-stream-prod --require-approval never --profile agent",
+    "cdk:deploy:mcp-proxy": "npm run release:mcp-proxy && npm run cdk:build && npx cdk deploy ask-archil-io-mcp-proxy-prod --require-approval never --profile agent"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

@@ -14,9 +14,10 @@ import { WelcomeHeader } from "./components/welcome-header";
 
 interface WelcomeProps {
   streamingEndpoint: string;
+  mcpProxyEndpoint: string | null;
 }
 
-export default function Welcome({ streamingEndpoint }: WelcomeProps) {
+export default function Welcome({ streamingEndpoint, mcpProxyEndpoint }: WelcomeProps) {
   const { messages: initialMessages, isLoaded } = useWelcomeSession();
 
   // Show loading state until client-side hydration is complete
@@ -29,6 +30,7 @@ export default function Welcome({ streamingEndpoint }: WelcomeProps) {
       initialMessages={initialMessages}
       isLoaded={isLoaded}
       streamingEndpoint={streamingEndpoint}
+      mcpProxyEndpoint={mcpProxyEndpoint}
     >
       <WelcomeContent />
     </ConversationProvider>

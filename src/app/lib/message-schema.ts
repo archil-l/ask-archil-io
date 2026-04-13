@@ -30,6 +30,7 @@ export type DynamicToolUIPart = {
   input: unknown;
   output?: unknown;
   errorText?: string;
+  resourceUri?: string;
 };
 
 export type ToolUIPart = {

@@ -3,12 +3,11 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import {
   getToolUiResourceUri,
-  RESOURCE_MIME_TYPE,
 } from "@modelcontextprotocol/ext-apps/app-bridge";
 import { createSignedFetcher } from "aws-sigv4-fetch";
 import { STSClient, AssumeRoleCommand } from "@aws-sdk/client-sts";
 import type Anthropic from "@anthropic-ai/sdk";
-import type { Tool, Resource } from "@modelcontextprotocol/sdk/types.js";
+import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 // MCP Server configuration
 const MCP_SERVER_URL = process.env.MCP_SERVER_URL;
@@ -49,13 +48,12 @@ export interface ServerInfo {
   name: string;
   client: Client;
   tools: Map<string, Tool>;
-  resources: Map<string, Resource>;
-  appHtmlCache: Map<string, string>;
 }
 
 export type McpToolsClient = {
   anthropicTools: Anthropic.Tool[];
   serverInfo: ServerInfo | null;
+  toolMetaMap: Map<string, string>;
   callTool: (name: string, input: Record<string, unknown>) => Promise<unknown>;
   close: () => Promise<void>;
 };
@@ -71,6 +69,7 @@ export async function getMcpTools(): Promise<McpToolsClient> {
     return {
       anthropicTools: [],
       serverInfo: null,
+      toolMetaMap: new Map(),
       callTool: async () => ({}),
       close: async () => {},
     };
@@ -125,16 +124,8 @@ export async function getMcpTools(): Promise<McpToolsClient> {
       tools.map((t) => t.name),
     );
 
-    // Get resources list
-    const { resources } = await client.listResources();
-    console.log(
-      "MCP resources loaded:",
-      resources.map((r) => r.uri),
-    );
-
-    // Build maps for caching
+    // Build maps
     const toolsMap = new Map(tools.map((tool) => [tool.name, tool]));
-    const resourcesMap = new Map(resources.map((r) => [r.uri, r]));
 
     // Convert to Anthropic format
     const anthropicTools: Anthropic.Tool[] = tools.map((t) => ({
@@ -146,7 +137,8 @@ export async function getMcpTools(): Promise<McpToolsClient> {
       },
     }));
 
-    // Build lookup using official helper
+    // Build tool → UI resource URI map using the official helper.
+    // This is sent to the client so it can fetch resources directly from the MCP proxy.
     const toolMetaMap = new Map<string, string>();
     for (const t of tools) {
       const uiResourceUri = getToolUiResourceUri(t);
@@ -155,81 +147,24 @@ export async function getMcpTools(): Promise<McpToolsClient> {
       }
     }
 
+    console.log(
+      "MCP tools with UI resources:",
+      [...toolMetaMap.keys()],
+    );
+
     // Prepare server info object
     const serverInfo: ServerInfo = {
       name: client.getServerVersion()?.name ?? MCP_SERVER_URL,
       client,
       tools: toolsMap,
-      resources: resourcesMap,
-      appHtmlCache: new Map(),
     };
 
     return {
       anthropicTools,
       serverInfo,
+      toolMetaMap,
       callTool: async (name: string, input: Record<string, unknown>) => {
-        const result = (await client.callTool({ name, arguments: input })) as {
-          content: Array<Record<string, unknown>>;
-          structuredContent?: unknown;
-          isError?: boolean;
-        };
-
-        // If this tool has an associated UI resource, fetch properly
-        const resourceUri = toolMetaMap.get(name);
-        if (resourceUri) {
-          try {
-            // Check cache first
-            if (!serverInfo.appHtmlCache.has(resourceUri)) {
-              const resourceResult = await client.readResource({
-                uri: resourceUri,
-              });
-
-              if (resourceResult.contents.length === 1) {
-                const content = resourceResult.contents[0];
-
-                // Validate correct MIME type
-                if (content.mimeType === RESOURCE_MIME_TYPE) {
-                  // Handle both blob and text formats
-                  const html =
-                    "blob" in content ? atob(content.blob) : content.text;
-
-                  // Get metadata with proper fallback: content-level → listing-level
-                  const contentMeta =
-                    (content as any)._meta || (content as any).meta;
-                  const listingResource = serverInfo.resources.get(resourceUri);
-                  const listingMeta = (listingResource as any)?._meta;
-                  const uiMeta = contentMeta?.ui ?? listingMeta?.ui;
-
-                  // Store full resource data in cache
-                  serverInfo.appHtmlCache.set(resourceUri, html);
-
-                  result.content.push({
-                    type: "resource",
-                    resource: {
-                      uri: resourceUri,
-                      mimeType: RESOURCE_MIME_TYPE,
-                      text: html,
-                      meta: uiMeta,
-                    },
-                  } as any);
-                }
-              }
-            } else {
-              // Return cached version
-              result.content.push({
-                type: "resource",
-                resource: {
-                  uri: resourceUri,
-                  mimeType: RESOURCE_MIME_TYPE,
-                  text: serverInfo.appHtmlCache.get(resourceUri),
-                },
-              } as any);
-            }
-          } catch (err) {
-            console.error("Failed to read UI resource:", resourceUri, err);
-          }
-        }
-
+        const result = await client.callTool({ name, arguments: input });
         return result;
       },
       close: () => client.close(),
@@ -239,6 +174,7 @@ export async function getMcpTools(): Promise<McpToolsClient> {
     return {
       anthropicTools: [],
       serverInfo: null,
+      toolMetaMap: new Map(),
       callTool: async () => ({}),
       close: async () => {},
     };

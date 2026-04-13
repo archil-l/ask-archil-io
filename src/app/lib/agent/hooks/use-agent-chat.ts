@@ -30,6 +30,7 @@ export interface AgentChatResult {
 type SSEEvent =
   | { type: "text-delta"; delta: string }
   | { type: "reasoning-delta"; delta: string }
+  | { type: "tool-meta"; toolMetaMap: Record<string, string> }
   | { type: "tool-start"; toolCallId: string; toolName: string }
   | { type: "tool-input-delta"; toolCallId: string; delta: string }
   | { type: "tool-input-done"; toolCallId: string; input: unknown }
@@ -137,6 +138,8 @@ export function useAgentChat(options: UseAgentChatOptions): AgentChatResult {
       // Track tool call state
       let textPartIndex = -1;
       const toolPartIndexByCallId = new Map<string, number>();
+      const toolNameByCallId = new Map<string, string>();
+      let toolMetaMap: Record<string, string> = {};
       let pendingClientTools: Array<{
         toolCallId: string;
         toolName: string;
@@ -191,7 +194,13 @@ export function useAgentChat(options: UseAgentChatOptions): AgentChatResult {
             break;
           }
 
+          case "tool-meta": {
+            toolMetaMap = event.toolMetaMap;
+            break;
+          }
+
           case "tool-start": {
+            toolNameByCallId.set(event.toolCallId, event.toolName);
             const toolPart: DynamicToolUIPart = {
               type: "dynamic-tool",
               toolCallId: event.toolCallId,
@@ -222,6 +231,10 @@ export function useAgentChat(options: UseAgentChatOptions): AgentChatResult {
               const toolPart = workingParts[idx] as DynamicToolUIPart;
               toolPart.output = event.output;
               toolPart.state = "output-available";
+              const toolName = toolNameByCallId.get(event.toolCallId);
+              if (toolName && toolMetaMap[toolName]) {
+                toolPart.resourceUri = toolMetaMap[toolName];
+              }
               commitParts();
             }
             break;

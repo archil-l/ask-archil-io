@@ -38,10 +38,8 @@ import {
 } from "~/lib/agent/tools/client-side-tools";
 import { WebPreviewToolUI } from "~/lib/agent/tools/web-preview";
 import { ShowResumeToolUI } from "~/lib/agent/tools/show-resume";
-import {
-  McpToolUI,
-  extractUIResource,
-} from "~/lib/agent/tools/mcp-ui/mcp-tool-ui";
+import { McpToolUI } from "~/lib/agent/tools/mcp-ui/mcp-tool-ui";
+import { useConversationContext } from "~/contexts/conversation-context";
 
 interface UIMessagePartRendererProps {
   part: AgentUIMessagePart;
@@ -56,6 +54,7 @@ export function UIMessagePartRenderer({
   messageId,
   isStreaming,
 }: UIMessagePartRendererProps) {
+  const { mcpProxyEndpoint } = useConversationContext();
   console.log(part);
 
   // Handle text parts
@@ -138,19 +137,15 @@ export function UIMessagePartRenderer({
       );
     }
 
-    // MCP tool with UIResource HTML
-    if (dynPart && dynPart.state === "output-available") {
-      const uiResource = extractUIResource(dynPart.output);
-      if (uiResource) {
-        return (
-          <McpToolUI
-            key={`${messageId}-tool-${index}`}
-            tool={dynPart}
-            html={uiResource.html}
-            permissions={uiResource.permissions}
-          />
-        );
-      }
+    // MCP tool with UI resource — render as soon as resourceUri is known and proxy is configured
+    if (dynPart && dynPart.resourceUri && mcpProxyEndpoint) {
+      return (
+        <McpToolUI
+          key={`${messageId}-tool-${index}`}
+          tool={dynPart}
+          mcpProxyEndpoint={mcpProxyEndpoint}
+        />
+      );
     }
 
     // Generic tool rendering

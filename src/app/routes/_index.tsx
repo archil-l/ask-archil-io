@@ -7,8 +7,10 @@ export async function loader() {
   if (!streamingEndpoint) {
     throw new Error("LLM_STREAM_URL environment variable is required");
   }
+  const mcpProxyEndpoint = process.env.MCP_PROXY_ENDPOINT ?? null;
   return {
     streamingEndpoint,
+    mcpProxyEndpoint,
   };
 }
 
@@ -24,6 +26,6 @@ export const meta: MetaFunction = () => {
 };
 
 export default function Index() {
-  const { streamingEndpoint } = useLoaderData<typeof loader>();
-  return <Welcome streamingEndpoint={streamingEndpoint} />;
+  const { streamingEndpoint, mcpProxyEndpoint } = useLoaderData<typeof loader>();
+  return <Welcome streamingEndpoint={streamingEndpoint} mcpProxyEndpoint={mcpProxyEndpoint} />;
 }

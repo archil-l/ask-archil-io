@@ -10,12 +10,14 @@ interface ConversationProviderProps {
   initialMessages?: AgentUIMessage[];
   isLoaded: boolean;
   streamingEndpoint: string;
+  mcpProxyEndpoint: string | null;
 }
 
 interface ConversationContextType {
   messages: AgentUIMessage[];
   isLoading: boolean;
   error: Error | undefined;
+  mcpProxyEndpoint: string | null;
   handleSubmit: (message: { text?: string; captchaToken?: string }) => void;
   handleClearConversation: () => void;
 }
@@ -29,6 +31,7 @@ export function ConversationProvider({
   initialMessages = [],
   isLoaded,
   streamingEndpoint,
+  mcpProxyEndpoint,
 }: ConversationProviderProps) {
   const { token, isTokenLoading } = useToken();
 
@@ -42,6 +45,7 @@ export function ConversationProvider({
       initialMessages={initialMessages}
       isLoaded={isLoaded}
       streamingEndpoint={streamingEndpoint}
+      mcpProxyEndpoint={mcpProxyEndpoint}
       token={token}
     >
       {children}
@@ -54,6 +58,7 @@ interface ConversationProviderInnerProps {
   initialMessages: AgentUIMessage[];
   isLoaded: boolean;
   streamingEndpoint: string;
+  mcpProxyEndpoint: string | null;
   token: string;
 }
 
@@ -62,6 +67,7 @@ function ConversationProviderInner({
   initialMessages,
   isLoaded,
   streamingEndpoint,
+  mcpProxyEndpoint,
   token,
 }: ConversationProviderInnerProps) {
   // Get client-side tool handlers
@@ -103,6 +109,7 @@ function ConversationProviderInner({
         messages,
         isLoading: status === "streaming" || status === "submitted",
         error,
+        mcpProxyEndpoint,
         handleSubmit,
         handleClearConversation,
       }}

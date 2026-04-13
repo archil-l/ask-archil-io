@@ -80,6 +80,7 @@ declare const awslambda: {
 type SSEEvent =
   | { type: "text-delta"; delta: string }
   | { type: "reasoning-delta"; delta: string }
+  | { type: "tool-meta"; toolMetaMap: Record<string, string> }
   | { type: "tool-start"; toolCallId: string; toolName: string }
   | { type: "tool-input-delta"; toolCallId: string; delta: string }
   | { type: "tool-input-done"; toolCallId: string; input: unknown }
@@ -178,9 +179,13 @@ async function runAgenticLoop(
   messages: Anthropic.MessageParam[],
   tools: Anthropic.Tool[],
   mcpCallTool: (name: string, input: Record<string, unknown>) => Promise<unknown>,
+  toolMetaMap: Record<string, string>,
   responseStream: ResponseStream,
 ): Promise<void> {
   let currentMessages = [...messages];
+
+  // Emit tool metadata first so the client knows which tools have UI resources
+  writeSSE(responseStream, { type: "tool-meta", toolMetaMap });
 
   for (let step = 0; step < MAX_STEPS; step++) {
     // Track current tool call id for streaming input deltas
@@ -426,7 +431,7 @@ export const handler = awslambda.streamifyResponse(
       );
 
       // Load MCP tools (graceful degradation)
-      const { anthropicTools: mcpTools, callTool, close } = await getMcpTools();
+      const { anthropicTools: mcpTools, callTool, close, toolMetaMap } = await getMcpTools();
 
       // Build combined tools list (client-side + MCP)
       const clientTools = buildClientSideAnthropicTools();
@@ -440,6 +445,7 @@ export const handler = awslambda.streamifyResponse(
         anthropicMessages,
         combinedTools,
         callTool,
+        Object.fromEntries(toolMetaMap),
         responseStream,
       );
 

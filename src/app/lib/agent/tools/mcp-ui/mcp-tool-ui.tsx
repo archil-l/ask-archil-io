@@ -18,22 +18,6 @@ const log = {
   error: console.error.bind(console, "[MCP-UI]"),
 };
 
-/**
- * Checks if a content item is a UI resource (MCP App).
- * Replaces the @mcp-ui/client isUIResource function.
- */
-function isUIResource(item: unknown): item is {
-  type: "resource";
-  resource: { mimeType?: string; text?: string; blob?: string };
-} {
-  if (!item || typeof item !== "object") return false;
-  const obj = item as Record<string, unknown>;
-  if (obj.type !== "resource") return false;
-  const resource = obj.resource as Record<string, unknown> | undefined;
-  if (!resource || typeof resource !== "object") return false;
-  return resource.mimeType === RESOURCE_MIME_TYPE;
-}
-
 // Implementation info for AppBridge
 const IMPLEMENTATION = { name: "AskArchil Host", version: "1.0.0" };
 
@@ -43,49 +27,70 @@ interface UIResourceData {
 }
 
 /**
- * Extracts the HTML string and optional permissions from a CallToolResult
- * that contains a UIResource. Returns null if no UIResource is found.
+ * Fetches a UI resource from the MCP proxy using the standard MCP resources/read
+ * JSON-RPC call. The proxy forwards the request to the MCP server with signed AWS
+ * credentials; this function only needs a valid JWT for auth.
  */
-export function extractUIResource(output: unknown): UIResourceData | null {
-  if (!output || typeof output !== "object") return null;
-  const result = output as { content?: unknown[] };
-  if (!Array.isArray(result.content)) return null;
+async function fetchUiResource(
+  resourceUri: string,
+  mcpProxyEndpoint: string,
+  jwtToken: string,
+): Promise<UIResourceData | null> {
+  const response = await fetch(mcpProxyEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      Authorization: `Bearer ${jwtToken}`,
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "resources/read",
+      params: { uri: resourceUri },
+    }),
+  });
 
-  for (const item of result.content) {
-    if (isUIResource(item as Parameters<typeof isUIResource>[0])) {
-      const resource = (
-        item as {
-          resource: {
-            text?: string;
-            blob?: string;
-            meta?: { permissions?: McpUiResourcePermissions };
-          };
-        }
-      ).resource;
-      const html = resource.text
-        ? resource.text
-        : resource.blob
-          ? atob(resource.blob)
-          : null;
-      if (!html) continue;
-      return { html, permissions: resource.meta?.permissions };
-    }
+  if (!response.ok) {
+    throw new Error(`MCP proxy responded with HTTP ${response.status}`);
   }
-  return null;
-}
 
-/**
- * Extracts just the HTML string from a CallToolResult UIResource.
- * Used by ui-message-part-renderer to detect whether an MCP app UI is present.
- */
-export function extractUIResourceHtml(output: unknown): string | null {
-  return extractUIResource(output)?.html ?? null;
-}
+  const json = await response.json() as {
+    result?: { contents?: Array<Record<string, unknown>> };
+    error?: { message?: string };
+  };
 
-interface McpToolUIProps {
-  tool: DynamicToolUIPart;
-  html: string;
-  permissions?: McpUiResourcePermissions;
+  if (json.error) {
+    throw new Error(json.error.message ?? "MCP resources/read failed");
+  }
+
+  const contents = json.result?.contents;
+  if (!Array.isArray(contents) || contents.length === 0) {
+    return null;
+  }
+
+  const content = contents[0] as {
+    uri?: string;
+    mimeType?: string;
+    text?: string;
+    blob?: string;
+    _meta?: { ui?: { permissions?: McpUiResourcePermissions } };
+  };
+
+  if (content.mimeType !== RESOURCE_MIME_TYPE) {
+    log.warn("Unexpected MIME type:", content.mimeType, "expected:", RESOURCE_MIME_TYPE);
+    return null;
+  }
+
+  const html = content.text
+    ? content.text
+    : content.blob
+      ? atob(content.blob)
+      : null;
+
+  if (!html) return null;
+
+  return { html, permissions: content._meta?.ui?.permissions };
 }
 
 /**
@@ -150,11 +155,17 @@ async function fetchJwtToken(): Promise<string> {
   return data.token;
 }
 
+interface McpToolUIProps {
+  tool: DynamicToolUIPart;
+  mcpProxyEndpoint: string;
+}
+
 /**
- * Renders an MCP tool's UIResource in a sandboxed iframe using AppBridge
- * for proper communication with the MCP app.
+ * Renders an MCP tool's UI resource in a sandboxed iframe using AppBridge.
+ * Fetches the resource HTML directly from the MCP proxy rather than relying
+ * on the streaming lambda to embed it in the tool result.
  */
-export function McpToolUI({ tool, html, permissions }: McpToolUIProps) {
+export function McpToolUI({ tool, mcpProxyEndpoint }: McpToolUIProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const appBridgeRef = useRef<AppBridge | null>(null);
   const initializedRef = useRef(false);
@@ -182,8 +193,16 @@ export function McpToolUI({ tool, html, permissions }: McpToolUIProps) {
       try {
         log.info("Starting MCP App initialization...");
 
-        // Fetch JWT for tool call proxying
+        // Fetch JWT for auth
         const jwtToken = await fetchJwtToken();
+
+        // Fetch the UI resource HTML directly from the MCP proxy
+        log.info("Fetching UI resource:", tool.resourceUri);
+        const uiResource = await fetchUiResource(tool.resourceUri!, mcpProxyEndpoint, jwtToken);
+        if (!uiResource) {
+          throw new Error(`No UI resource found for ${tool.resourceUri}`);
+        }
+        const { html, permissions } = uiResource;
 
         // Wait for sandbox proxy to be ready (this also sets iframe.src)
         const ready = await loadSandboxProxy(iframe, sandboxUrl.href);
@@ -311,8 +330,7 @@ export function McpToolUI({ tool, html, permissions }: McpToolUIProps) {
           ),
         );
 
-        // Send HTML to sandbox along with any permissions declared in the tool's
-        // resource metadata (e.g. camera, microphone, geolocation).
+        // Send HTML to sandbox along with any permissions declared in the resource metadata
         log.info("Sending HTML to sandbox...", permissions ? `(permissions: ${JSON.stringify(permissions)})` : "");
         await appBridge.sendSandboxResourceReady({ html, permissions });
 
@@ -353,7 +371,7 @@ export function McpToolUI({ tool, html, permissions }: McpToolUIProps) {
         });
       }
     };
-  }, [html, permissions, tool.input, tool.output, sandboxUrl.href]);
+  }, [tool.resourceUri, mcpProxyEndpoint, tool.input, tool.output, sandboxUrl.href]);
 
   return (
     <div

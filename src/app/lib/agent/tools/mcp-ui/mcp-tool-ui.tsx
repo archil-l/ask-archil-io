@@ -55,10 +55,21 @@ async function fetchUiResource(
     throw new Error(`MCP proxy responded with HTTP ${response.status}`);
   }
 
-  const json = await response.json() as {
-    result?: { contents?: Array<Record<string, unknown>> };
-    error?: { message?: string };
-  };
+  // MCP Streamable HTTP transport may respond with SSE even for single-request calls.
+  // Parse the first `data:` line from the event stream when that happens.
+  const contentType = response.headers.get("content-type") ?? "";
+  let json: { result?: { contents?: Array<Record<string, unknown>> }; error?: { message?: string } };
+  if (contentType.includes("text/event-stream")) {
+    const text = await response.text();
+    const dataLine = text.split("\n").find((line) => line.startsWith("data:"));
+    if (!dataLine) throw new Error("No data line in SSE response");
+    json = JSON.parse(dataLine.slice(5).trim());
+  } else {
+    json = await response.json() as {
+      result?: { contents?: Array<Record<string, unknown>> };
+      error?: { message?: string };
+    };
+  }
 
   if (json.error) {
     throw new Error(json.error.message ?? "MCP resources/read failed");

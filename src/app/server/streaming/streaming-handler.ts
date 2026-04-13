@@ -111,6 +111,14 @@ function buildClientSideAnthropicTools(): Anthropic.Tool[] {
 /**
  * Convert AgentUIMessage[] to Anthropic MessageParam[] format.
  * Tool results from a prior client-side round are passed separately and appended.
+ *
+ * For server-side MCP tools: the results are stored in DynamicToolUIPart.output
+ * in the client's message history. We reconstruct the required tool_result user
+ * message from those stored outputs so Anthropic doesn't complain about unmatched
+ * tool_use blocks.
+ *
+ * For client-side tools: results come via the explicit toolResults parameter
+ * (the client re-submits after executing them locally).
  */
 function convertToAnthropicMessages(
   messages: AgentUIMessage[],
@@ -130,6 +138,7 @@ function convertToAnthropicMessages(
       }
     } else if (msg.role === "assistant") {
       const content: Anthropic.ContentBlockParam[] = [];
+      const serverToolResults: Anthropic.ToolResultBlockParam[] = [];
 
       for (const part of msg.parts) {
         if (part.type === "text") {
@@ -143,11 +152,29 @@ function convertToAnthropicMessages(
             name: toolPart.toolName,
             input: (toolPart.input as Record<string, unknown>) ?? {},
           });
+
+          // For server-side tools with stored output, reconstruct the tool_result.
+          // Client-side tools are handled via the explicit toolResults parameter.
+          if (
+            !CLIENT_SIDE_TOOLS.has(toolPart.toolName) &&
+            toolPart.state === "output-available" &&
+            toolPart.output !== undefined
+          ) {
+            serverToolResults.push({
+              type: "tool_result",
+              tool_use_id: toolPart.toolCallId,
+              content: JSON.stringify(toolPart.output),
+            });
+          }
         }
       }
 
       if (content.length > 0) {
         result.push({ role: "assistant", content });
+        // Immediately follow with tool_results for any server-side tools
+        if (serverToolResults.length > 0) {
+          result.push({ role: "user", content: serverToolResults });
+        }
       }
     }
   }

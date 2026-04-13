@@ -165,7 +165,7 @@ export class WebAppStack extends cdk.Stack {
         JWT_SECRET_ARN: secretsStack.jwtSecretArn,
         JWT_EXPIRY_HOURS: "1",
         LLM_STREAM_URL: llmStreamStack.functionUrl.url,
-        MCP_PROXY_ENDPOINT: mcpProxyStack.functionUrl.url,
+        MCP_PROXY_ENDPOINT: mcpProxyStack.proxyEndpoint,
       },
       logRetention: logRetentionDays,
     });

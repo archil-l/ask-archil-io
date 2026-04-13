@@ -79,12 +79,14 @@ const llmStreamStack = new LLMStreamStack(
 llmStreamStack.addDependency(secretsStack);
 
 // MCP Proxy Stack - dedicated Lambda for client-side MCP access
+// Uses the subdomain stack's wildcard cert to serve at proxy.<domainName>
 const mcpProxyStack = new McpProxyStack(
   app,
   `ask-archil-io-mcp-proxy-${envConfig.stage}`,
   {
     envConfig,
     secretsStack,
+    subdomainStack,
     env: {
       account: envConfig.accountId,
       region: envConfig.region,
@@ -92,8 +94,9 @@ const mcpProxyStack = new McpProxyStack(
   },
 );
 
-// Ensure secrets stack is created before MCP proxy stack
+// Ensure secrets and subdomain stacks are created before MCP proxy stack
 mcpProxyStack.addDependency(secretsStack);
+mcpProxyStack.addDependency(subdomainStack);
 
 // Application Stack - the actual web app
 const webAppStack = new WebAppStack(app, `ask-archil-io-${envConfig.stage}`, {

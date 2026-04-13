@@ -2,24 +2,32 @@ import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Runtime, Architecture } from "aws-cdk-lib/aws-lambda";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
+import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
+import * as route53 from "aws-cdk-lib/aws-route53";
+import * as targets from "aws-cdk-lib/aws-route53-targets";
 import { Construct } from "constructs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import type { EnvironmentConfig } from "../config/environments.js";
 import { SecretsStack } from "./secrets-stack.js";
+import { SubdomainStack } from "./subdomain-stack.js";
 
 interface McpProxyStackProps extends cdk.StackProps {
   envConfig: EnvironmentConfig;
   secretsStack: SecretsStack;
+  subdomainStack?: SubdomainStack;
 }
 
 export class McpProxyStack extends cdk.Stack {
   public readonly functionUrl: lambda.FunctionUrl;
+  /** The public-facing domain for the proxy (e.g. https://proxy.ask.archil.io) */
+  public readonly proxyEndpoint: string;
 
   constructor(scope: Construct, id: string, props: McpProxyStackProps) {
     super(scope, id, props);
 
-    const { envConfig, secretsStack } = props;
+    const { envConfig, secretsStack, subdomainStack } = props;
 
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -79,17 +87,84 @@ export class McpProxyStack extends cdk.Stack {
     // Grant Lambda function read access to JWT secret
     secretsStack.jwtSecret.grantRead(mcpProxyFunction);
 
-    // Add Function URL (buffered — MCP responses are JSON, not streams)
+    // Add Function URL (buffered — MCP responses are JSON, not streams).
+    // No CORS config here — CloudFront handles CORS for the proxy domain.
     this.functionUrl = mcpProxyFunction.addFunctionUrl({
       authType: lambda.FunctionUrlAuthType.NONE,
       invokeMode: lambda.InvokeMode.BUFFERED,
-      cors: {
-        allowedOrigins: ["https://ask.archil.io", "http://localhost:5173"],
-        allowedMethods: [lambda.HttpMethod.ALL],
-        allowedHeaders: ["Content-Type", "Authorization"],
-        allowCredentials: true,
-      },
     });
+
+    // Extract the hostname from the Function URL (strip trailing slash)
+    const functionUrlHostname = cdk.Fn.select(
+      2,
+      cdk.Fn.split("/", this.functionUrl.url),
+    );
+
+    // If a subdomain stack is provided, put a CloudFront distribution in front
+    // of the Lambda Function URL and serve it at proxy.<domainName>.
+    if (subdomainStack && envConfig.domainName) {
+      const proxyDomain = `proxy.${envConfig.domainName}`;
+
+      const distribution = new cloudfront.Distribution(
+        this,
+        "mcp-proxy-distribution",
+        {
+          defaultBehavior: {
+            // Lambda Function URLs must be fronted via HttpOrigin
+            origin: new origins.HttpOrigin(functionUrlHostname, {
+              protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
+              // Forward Authorization and Content-Type to the Lambda
+              originPath: "/",
+            }),
+            viewerProtocolPolicy:
+              cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+            allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+            cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+            originRequestPolicy:
+              cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+            responseHeadersPolicy: new cloudfront.ResponseHeadersPolicy(
+              this,
+              "mcp-proxy-cors-policy",
+              {
+                corsBehavior: {
+                  accessControlAllowCredentials: true,
+                  accessControlAllowHeaders: ["Content-Type", "Authorization"],
+                  accessControlAllowMethods: ["POST", "OPTIONS"],
+                  accessControlAllowOrigins: [
+                    `https://${envConfig.domainName}`,
+                    "http://localhost:5173",
+                  ],
+                  originOverride: true,
+                },
+              },
+            ),
+          },
+          domainNames: [proxyDomain],
+          certificate: subdomainStack.certificate,
+          comment: `MCP Proxy distribution for ${proxyDomain}`,
+        },
+      );
+
+      // Route53 A record: proxy.<domainName> → CloudFront
+      new route53.ARecord(this, "mcp-proxy-alias-record", {
+        zone: subdomainStack.hostedZone,
+        recordName: proxyDomain,
+        target: route53.RecordTarget.fromAlias(
+          new targets.CloudFrontTarget(distribution),
+        ),
+      });
+
+      this.proxyEndpoint = `https://${proxyDomain}`;
+
+      new cdk.CfnOutput(this, "mcp-proxy-domain", {
+        description: "MCP Proxy custom domain",
+        value: this.proxyEndpoint,
+        exportName: `mcp-proxy-endpoint-${envConfig.stage}`,
+      });
+    } else {
+      // Fallback to raw Function URL when no custom domain is configured
+      this.proxyEndpoint = this.functionUrl.url;
+    }
 
     // Outputs
     new cdk.CfnOutput(this, "mcp-proxy-function-url", {

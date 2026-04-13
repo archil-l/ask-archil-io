@@ -17,11 +17,6 @@ const CLIENT_ACCESS_ROLE_ARN = process.env.CLIENT_ACCESS_ROLE_ARN;
 
 const secretsClient = new SecretsManagerClient({ region: AWS_REGION });
 
-const ALLOWED_ORIGINS = [
-  "https://ask.archil.io",
-  "http://localhost:5173",
-];
-
 async function fetchJWTSecret(): Promise<string> {
   if (!JWT_SECRET_ARN) {
     throw new Error("JWT_SECRET_ARN environment variable is not set");
@@ -54,32 +49,21 @@ async function getCredentials() {
   };
 }
 
-function corsHeaders(origin: string | undefined): Record<string, string> {
-  const allowed =
-    origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    "Access-Control-Allow-Origin": allowed,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Credentials": "true",
-  };
-}
+// CORS is handled entirely by the Lambda Function URL configuration.
+// Do NOT set Access-Control-* headers here — that causes duplicates.
 
 export const handler = async (
   event: APIGatewayProxyEventV2,
 ): Promise<APIGatewayProxyResultV2> => {
-  const origin = event.headers["origin"];
-  const cors = corsHeaders(origin);
-
-  // Handle CORS preflight
+  // OPTIONS preflight is handled by the Lambda Function URL CORS config
   if (event.requestContext.http.method === "OPTIONS") {
-    return { statusCode: 204, headers: cors, body: "" };
+    return { statusCode: 204, headers: {}, body: "" };
   }
 
   if (event.requestContext.http.method !== "POST") {
     return {
       statusCode: 405,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "Method not allowed" }),
     };
   }
@@ -87,7 +71,7 @@ export const handler = async (
   if (!MCP_SERVER_URL) {
     return {
       statusCode: 503,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "MCP server not configured" }),
     };
   }
@@ -100,7 +84,7 @@ export const handler = async (
     console.error("[MCP Proxy] Failed to fetch JWT secret:", err);
     return {
       statusCode: 500,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "Internal server error" }),
     };
   }
@@ -113,7 +97,7 @@ export const handler = async (
   if (!verificationResult) {
     return {
       statusCode: 401,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "Missing Authorization header" }),
     };
   }
@@ -121,7 +105,7 @@ export const handler = async (
   if (!verificationResult.valid) {
     return {
       statusCode: 401,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: verificationResult.error || "Unauthorized" }),
     };
   }
@@ -139,7 +123,7 @@ export const handler = async (
     console.error("[MCP Proxy] Failed to assume IAM role:", err);
     return {
       statusCode: 503,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "Failed to authenticate with MCP server" }),
     };
   }
@@ -160,7 +144,7 @@ export const handler = async (
     console.error("[MCP Proxy] Failed to reach MCP server:", err);
     return {
       statusCode: 502,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ error: "Failed to reach MCP server" }),
     };
   }
@@ -171,10 +155,7 @@ export const handler = async (
 
   return {
     statusCode: mcpResponse.status,
-    headers: {
-      ...cors,
-      "Content-Type": contentType,
-    },
+    headers: { "Content-Type": contentType },
     body: responseBody,
   };
 };

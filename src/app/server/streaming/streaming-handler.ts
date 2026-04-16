@@ -109,6 +109,42 @@ function buildClientSideAnthropicTools(): Anthropic.Tool[] {
 }
 
 /**
+ * Strips large binary/HTML fields from MCP tool output before sending to the LLM.
+ * Removes structuredContent.pdfBase64 and any resource text/blob entries to avoid
+ * blowing up the context window on subsequent turns.
+ */
+function stripLargeToolOutput(output: unknown): unknown {
+  if (!output || typeof output !== "object") return output;
+  const obj = output as Record<string, unknown>;
+  const result: Record<string, unknown> = { ...obj };
+
+  // Strip large fields from structuredContent
+  if (result.structuredContent && typeof result.structuredContent === "object") {
+    const sc = { ...(result.structuredContent as Record<string, unknown>) };
+    delete sc.pdfBase64;
+    delete sc.filename;
+    result.structuredContent = sc;
+  }
+
+  // Strip text/blob from resource content entries
+  if (Array.isArray(result.content)) {
+    result.content = result.content.map((item: unknown) => {
+      if (!item || typeof item !== "object") return item;
+      const entry = item as Record<string, unknown>;
+      if (entry.type === "resource" && entry.resource && typeof entry.resource === "object") {
+        const res = { ...(entry.resource as Record<string, unknown>) };
+        delete res.text;
+        delete res.blob;
+        return { ...entry, resource: res };
+      }
+      return item;
+    });
+  }
+
+  return result;
+}
+
+/**
  * Convert AgentUIMessage[] to Anthropic MessageParam[] format.
  * Tool results from a prior client-side round are passed separately and appended.
  *
@@ -163,7 +199,7 @@ function convertToAnthropicMessages(
             serverToolResults.push({
               type: "tool_result",
               tool_use_id: toolPart.toolCallId,
-              content: JSON.stringify(toolPart.output),
+              content: JSON.stringify(stripLargeToolOutput(toolPart.output)),
             });
           }
         }

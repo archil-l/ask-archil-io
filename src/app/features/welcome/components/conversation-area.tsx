@@ -4,7 +4,7 @@ import { ConversationContent } from "~/components/ai-elements/conversation";
 import { Message } from "~/components/ai-elements/message";
 import { MessageContent } from "~/components/ai-elements/message";
 import { useAutoScroll } from "../hooks/use-auto-scroll";
-import { UIMessagePartRenderer } from "./ui-message-part-renderer";
+import { UIMessagePartRenderer } from "./message-renderers";
 import { cn } from "~/lib/utils";
 import { useConversationContext } from "~/contexts/conversation-context";
 import { AgentUIMessage } from "~/lib/message-schema";

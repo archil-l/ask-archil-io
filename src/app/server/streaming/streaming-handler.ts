@@ -207,7 +207,6 @@ function convertToAnthropicMessages(
 
       if (content.length > 0) {
         result.push({ role: "assistant", content });
-        // Immediately follow with tool_results for any server-side tools
         if (serverToolResults.length > 0) {
           result.push({ role: "user", content: serverToolResults });
         }
@@ -227,7 +226,27 @@ function convertToAnthropicMessages(
     });
   }
 
-  return result;
+  // Merge consecutive messages of the same role. This can happen when a
+  // tool_result user message is immediately followed by the next user text
+  // message. Anthropic requires strictly alternating roles.
+  const merged: Anthropic.MessageParam[] = [];
+  for (const msg of result) {
+    const prev = merged.at(-1);
+    if (prev && prev.role === msg.role) {
+      // Merge content arrays (or promote string content to text block)
+      const prevContent: Anthropic.ContentBlockParam[] = Array.isArray(prev.content)
+        ? (prev.content as Anthropic.ContentBlockParam[])
+        : [{ type: "text", text: prev.content as string }];
+      const msgContent: Anthropic.ContentBlockParam[] = Array.isArray(msg.content)
+        ? (msg.content as Anthropic.ContentBlockParam[])
+        : [{ type: "text", text: msg.content as string }];
+      prev.content = [...prevContent, ...msgContent];
+    } else {
+      merged.push(msg);
+    }
+  }
+
+  return merged;
 }
 
 /**

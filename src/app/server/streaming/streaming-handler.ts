@@ -161,6 +161,9 @@ function convertToAnthropicMessages(
   toolResults?: Array<{ toolCallId: string; toolName: string; output: unknown }>,
 ): Anthropic.MessageParam[] {
   const result: Anthropic.MessageParam[] = [];
+  // Track tool call IDs already emitted from stored history to avoid duplicates
+  // when toolResults is also provided on the immediate execution round.
+  const emittedToolResultIds = new Set<string>();
 
   for (const msg of messages) {
     if (msg.role === "user") {
@@ -174,7 +177,7 @@ function convertToAnthropicMessages(
       }
     } else if (msg.role === "assistant") {
       const content: Anthropic.ContentBlockParam[] = [];
-      const serverToolResults: Anthropic.ToolResultBlockParam[] = [];
+      const storedToolResults: Anthropic.ToolResultBlockParam[] = [];
 
       for (const part of msg.parts) {
         if (part.type === "text") {
@@ -189,41 +192,47 @@ function convertToAnthropicMessages(
             input: (toolPart.input as Record<string, unknown>) ?? {},
           });
 
-          // For server-side tools with stored output, reconstruct the tool_result.
-          // Client-side tools are handled via the explicit toolResults parameter.
+          // Reconstruct tool_result from stored output for any tool (client-side or
+          // server-side) that has already been executed. On the immediate execution
+          // round the explicit toolResults parameter also carries these results, so
+          // we track emitted IDs to avoid duplicates below.
           if (
-            !CLIENT_SIDE_TOOLS.has(toolPart.toolName) &&
             toolPart.state === "output-available" &&
             toolPart.output !== undefined
           ) {
-            serverToolResults.push({
+            storedToolResults.push({
               type: "tool_result",
               tool_use_id: toolPart.toolCallId,
               content: JSON.stringify(stripLargeToolOutput(toolPart.output)),
             });
+            emittedToolResultIds.add(toolPart.toolCallId);
           }
         }
       }
 
       if (content.length > 0) {
         result.push({ role: "assistant", content });
-        if (serverToolResults.length > 0) {
-          result.push({ role: "user", content: serverToolResults });
+        if (storedToolResults.length > 0) {
+          result.push({ role: "user", content: storedToolResults });
         }
       }
     }
   }
 
-  // Append tool results as a user message if provided (client-side tool execution round)
+  // Append tool results as a user message if provided (client-side tool execution
+  // round). Skip any IDs already emitted from stored history to avoid duplicates.
   if (toolResults && toolResults.length > 0) {
-    result.push({
-      role: "user",
-      content: toolResults.map((tr) => ({
-        type: "tool_result" as const,
-        tool_use_id: tr.toolCallId,
-        content: JSON.stringify(tr.output),
-      })),
-    });
+    const deduped = toolResults.filter((tr) => !emittedToolResultIds.has(tr.toolCallId));
+    if (deduped.length > 0) {
+      result.push({
+        role: "user",
+        content: deduped.map((tr) => ({
+          type: "tool_result" as const,
+          tool_use_id: tr.toolCallId,
+          content: JSON.stringify(tr.output),
+        })),
+      });
+    }
   }
 
   // Merge consecutive messages of the same role. This can happen when a

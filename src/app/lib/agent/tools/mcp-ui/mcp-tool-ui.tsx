@@ -11,6 +11,9 @@ import {
 import type { DynamicToolUIPart } from "~/lib/message-schema";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { useThemeContext } from "~/contexts/theme-context";
+import { cn } from "~/lib/utils";
+import { Spinner } from "~/components/ui/spinner";
+import { AppWindowIcon } from "lucide-react";
 
 const log = {
   info: console.log.bind(console, "[MCP-UI]"),
@@ -384,34 +387,29 @@ export function McpToolUI({ tool, mcpProxyEndpoint }: McpToolUIProps) {
     };
   }, [tool.resourceUri, mcpProxyEndpoint, tool.input, tool.output, sandboxUrl.href]);
 
+  const appTitle = tool.title || tool.toolName;
+
   return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {isLoading && (
-        <div style={{ padding: "16px", color: "var(--muted-foreground)" }}>
-          Loading MCP App...
-        </div>
-      )}
-      {error && (
-        <div style={{ padding: "16px", color: "var(--destructive)" }}>
+    <div className="flex w-full flex-col rounded-lg border bg-card">
+      {/* Header */}
+      <div className="flex items-center gap-2 border-b px-3 py-2">
+        <AppWindowIcon className="size-4 shrink-0 text-muted-foreground" />
+        <span className="truncate text-sm font-medium">{appTitle}</span>
+        {isLoading && <Spinner className="ml-auto size-4 shrink-0 text-muted-foreground" />}
+      </div>
+
+      {/* Error state */}
+      {error && !isLoading && (
+        <div className="px-4 py-3 text-sm text-destructive">
           Error: {error}
         </div>
       )}
+
+      {/* iframe — hidden while loading so the sandbox can initialize in the background */}
       <iframe
         ref={iframeRef}
-        style={{
-          width: "100%",
-          height: "600px",
-          border: "none",
-          backgroundColor: "transparent",
-          display: isLoading ? "none" : "block",
-        }}
+        className={cn("w-full border-none bg-transparent", isLoading ? "hidden" : "block")}
+        style={{ height: "600px" }}
       />
     </div>
   );

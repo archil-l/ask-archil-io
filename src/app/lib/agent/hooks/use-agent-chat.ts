@@ -64,6 +64,46 @@ function createAssistantMessage(): AgentUIMessage {
 }
 
 /**
+ * Strips large binary fields (e.g. pdfBase64) from tool outputs before sending
+ * to the server. The data is preserved in localStorage but not retransmitted.
+ */
+function stripLargeFieldsForTransport(
+  messages: AgentUIMessage[],
+): AgentUIMessage[] {
+  return messages.map((msg) => ({
+    ...msg,
+    parts: msg.parts.map((part) => {
+      if (
+        (part.type === "dynamic-tool" || part.type.startsWith("tool-")) &&
+        "output" in part &&
+        part.output != null
+      ) {
+        const output = part.output as Record<string, unknown>;
+        if (
+          output.structuredContent != null &&
+          typeof output.structuredContent === "object"
+        ) {
+          const sc = output.structuredContent as Record<string, unknown>;
+          if ("pdfBase64" in sc) {
+            return {
+              ...part,
+              output: {
+                ...output,
+                structuredContent: {
+                  ...sc,
+                  pdfBase64: "[PDF_DATA_OMITTED]",
+                },
+              },
+            };
+          }
+        }
+      }
+      return part;
+    }),
+  }));
+}
+
+/**
  * Updates the last assistant message in the messages array.
  * Returns a new array with the updated message.
  */
@@ -110,7 +150,10 @@ export function useAgentChat(options: UseAgentChatOptions): AgentChatResult {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ messages: allMessages, toolResults }),
+          body: JSON.stringify({
+            messages: stripLargeFieldsForTransport(allMessages),
+            toolResults,
+          }),
         });
       } catch (err) {
         setStatus("error");

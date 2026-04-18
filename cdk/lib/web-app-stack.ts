@@ -4,6 +4,7 @@ import { Runtime, Architecture } from "aws-cdk-lib/aws-lambda";
 import * as apigatewayv2 from "aws-cdk-lib/aws-apigatewayv2";
 import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import * as s3 from "aws-cdk-lib/aws-s3";
+import * as iam from "aws-cdk-lib/aws-iam";
 import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
@@ -46,7 +47,7 @@ export class WebAppStack extends cdk.Stack {
       autoDeleteObjects: true,
       publicReadAccess: false,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      versioned: true, // Enable versioning for rollback capability
+      versioned: true,
       cors: [
         {
           allowedMethods: [s3.HttpMethods.GET],
@@ -177,7 +178,7 @@ export class WebAppStack extends cdk.Stack {
     secretsStack.jwtSecret.grantRead(remixFunction);
 
     // Deploy static assets to S3 bucket
-    new s3deploy.BucketDeployment(this, "remix-assets-deployment", {
+    const assetsDeployment = new s3deploy.BucketDeployment(this, "remix-assets-deployment", {
       sources: [
         s3deploy.Source.asset(path.join(__dirname, "../../../public")),
         s3deploy.Source.asset(path.join(__dirname, "../../../dist/client"), {
@@ -188,6 +189,14 @@ export class WebAppStack extends cdk.Stack {
       distribution, // Invalidate CloudFront cache on deployment
       distributionPaths: ["/*"],
     });
+
+    // Versioned bucket requires DeleteObjectVersion for the --delete sync flag
+    assetsDeployment.handlerRole?.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ["s3:DeleteObjectVersion"],
+        resources: [assetsBucket.arnForObjects("*")],
+      })
+    );
 
     // HTTP API Gateway (v2) - no automatic /prod/ path
     const httpApi = new apigatewayv2.HttpApi(this, "remix-http-api", {

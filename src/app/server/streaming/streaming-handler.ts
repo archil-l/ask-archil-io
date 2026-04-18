@@ -230,16 +230,17 @@ function convertToAnthropicMessages(
         result.push({ role: "user", content: textContent });
       }
     } else if (msg.role === "assistant") {
-      const content: Anthropic.ContentBlockParam[] = [];
+      const toolUseBlocks: Anthropic.ContentBlockParam[] = [];
+      const textBlocks: Anthropic.ContentBlockParam[] = [];
       const storedToolResults: Anthropic.ToolResultBlockParam[] = [];
 
       for (const part of msg.parts) {
         if (part.type === "text") {
           const text = (part as { type: "text"; text: string }).text;
-          if (text) content.push({ type: "text", text });
+          if (text) textBlocks.push({ type: "text", text });
         } else if (part.type === "dynamic-tool") {
           const toolPart = part as DynamicToolUIPart;
-          content.push({
+          toolUseBlocks.push({
             type: "tool_use",
             id: toolPart.toolCallId,
             name: toolPart.toolName,
@@ -264,11 +265,23 @@ function convertToAnthropicMessages(
         }
       }
 
-      if (content.length > 0) {
-        result.push({ role: "assistant", content });
+      // Emit tool_use blocks as their own assistant message so that the following
+      // tool_result user message is never merged with subsequent user text.
+      // Anthropic requires: assistant:[tool_use] → user:[tool_result] → assistant:[text]
+      // If we put tool_use and text in the same assistant message, the tool_result
+      // user message gets merged with the next user turn, violating Anthropic's rule
+      // that a tool_result message must contain ONLY tool_result blocks.
+      if (toolUseBlocks.length > 0) {
+        result.push({ role: "assistant", content: toolUseBlocks });
         if (storedToolResults.length > 0) {
           result.push({ role: "user", content: storedToolResults });
         }
+      }
+
+      // Emit text blocks as a separate assistant message so they sit after the
+      // tool_result user message, maintaining correct role alternation.
+      if (textBlocks.length > 0) {
+        result.push({ role: "assistant", content: textBlocks });
       }
     }
   }

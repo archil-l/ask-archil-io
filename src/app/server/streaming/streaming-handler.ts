@@ -174,6 +174,46 @@ function convertToAnthropicMessages(
     output: unknown;
   }>,
 ): Anthropic.MessageParam[] {
+  console.log(
+    "[convertToAnthropicMessages] input messages count:",
+    messages.length,
+  );
+  console.log(
+    "[convertToAnthropicMessages] toolResults:",
+    JSON.stringify(
+      toolResults?.map((tr) => ({
+        toolCallId: tr.toolCallId,
+        toolName: tr.toolName,
+        outputType: typeof tr.output,
+      })),
+    ),
+  );
+  for (const [i, msg] of messages.entries()) {
+    console.log(
+      `[convertToAnthropicMessages] msg[${i}] role=${msg.role} parts:`,
+      JSON.stringify(
+        msg.parts.map((p) => {
+          if (p.type === "dynamic-tool") {
+            const tp = p as DynamicToolUIPart;
+            return {
+              type: "dynamic-tool",
+              toolCallId: tp.toolCallId,
+              toolName: tp.toolName,
+              state: tp.state,
+              hasOutput: tp.output !== undefined,
+            };
+          }
+          if (p.type === "text") {
+            return {
+              type: "text",
+              textLen: (p as { type: "text"; text: string }).text.length,
+            };
+          }
+          return { type: p.type };
+        }),
+      ),
+    );
+  }
   const result: Anthropic.MessageParam[] = [];
   // Track tool call IDs already emitted from stored history to avoid duplicates
   // when toolResults is also provided on the immediate execution round.
@@ -275,6 +315,34 @@ function convertToAnthropicMessages(
     }
   }
 
+  console.log(
+    "[convertToAnthropicMessages] output merged messages count:",
+    merged.length,
+  );
+  for (const [i, m] of merged.entries()) {
+    const contentSummary = Array.isArray(m.content)
+      ? (m.content as Anthropic.ContentBlockParam[]).map((b) => {
+          if (b.type === "tool_use") {
+            return { type: "tool_use", id: b.id, name: b.name };
+          }
+          if (b.type === "tool_result") {
+            return {
+              type: "tool_result",
+              tool_use_id: (b as Anthropic.ToolResultBlockParam).tool_use_id,
+            };
+          }
+          if (b.type === "text") {
+            return { type: "text", len: b.text.length };
+          }
+          return { type: b.type };
+        })
+      : [{ type: "string", len: (m.content as string).length }];
+    console.log(
+      `[convertToAnthropicMessages] merged[${i}] role=${m.role}:`,
+      JSON.stringify(contentSummary),
+    );
+  }
+
   return merged;
 }
 
@@ -302,6 +370,34 @@ async function runAgenticLoop(
   writeSSE(responseStream, { type: "tool-meta", toolMetaMap });
 
   for (let step = 0; step < MAX_STEPS; step++) {
+    // Log the full message history being sent to Anthropic on each step
+    console.log(
+      `[runAgenticLoop] step=${step} sending ${currentMessages.length} messages to Anthropic`,
+    );
+    for (const [i, m] of currentMessages.entries()) {
+      const contentSummary = Array.isArray(m.content)
+        ? (m.content as Anthropic.ContentBlockParam[]).map((b) => {
+            if (b.type === "tool_use") {
+              return { type: "tool_use", id: b.id, name: b.name };
+            }
+            if (b.type === "tool_result") {
+              return {
+                type: "tool_result",
+                tool_use_id: (b as Anthropic.ToolResultBlockParam).tool_use_id,
+              };
+            }
+            if (b.type === "text") {
+              return { type: "text", len: b.text.length };
+            }
+            return { type: b.type };
+          })
+        : [{ type: "string", len: (m.content as string).length }];
+      console.log(
+        `[runAgenticLoop] step=${step} msg[${i}] role=${m.role}:`,
+        JSON.stringify(contentSummary),
+      );
+    }
+
     // Track current tool call id for streaming input deltas
     let currentToolCallId: string | null = null;
 

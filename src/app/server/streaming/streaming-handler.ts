@@ -104,7 +104,9 @@ function buildClientSideAnthropicTools(): Anthropic.Tool[] {
   return Object.entries(allTools).map(([name, def]) => ({
     name,
     description: def.description,
-    input_schema: z.toJSONSchema(def.inputSchema) as Anthropic.Tool["input_schema"],
+    input_schema: z.toJSONSchema(
+      def.inputSchema,
+    ) as Anthropic.Tool["input_schema"],
   }));
 }
 
@@ -119,7 +121,10 @@ function stripLargeToolOutput(output: unknown): unknown {
   const result: Record<string, unknown> = { ...obj };
 
   // Strip large fields from structuredContent
-  if (result.structuredContent && typeof result.structuredContent === "object") {
+  if (
+    result.structuredContent &&
+    typeof result.structuredContent === "object"
+  ) {
     const sc = { ...(result.structuredContent as Record<string, unknown>) };
     delete sc.pdfBase64;
     delete sc.filename;
@@ -131,7 +136,11 @@ function stripLargeToolOutput(output: unknown): unknown {
     result.content = result.content.map((item: unknown) => {
       if (!item || typeof item !== "object") return item;
       const entry = item as Record<string, unknown>;
-      if (entry.type === "resource" && entry.resource && typeof entry.resource === "object") {
+      if (
+        entry.type === "resource" &&
+        entry.resource &&
+        typeof entry.resource === "object"
+      ) {
         const res = { ...(entry.resource as Record<string, unknown>) };
         delete res.text;
         delete res.blob;
@@ -155,10 +164,15 @@ function stripLargeToolOutput(output: unknown): unknown {
  *
  * For client-side tools: results come via the explicit toolResults parameter
  * (the client re-submits after executing them locally).
+ *
  */
 function convertToAnthropicMessages(
   messages: AgentUIMessage[],
-  toolResults?: Array<{ toolCallId: string; toolName: string; output: unknown }>,
+  toolResults?: Array<{
+    toolCallId: string;
+    toolName: string;
+    output: unknown;
+  }>,
 ): Anthropic.MessageParam[] {
   const result: Anthropic.MessageParam[] = [];
   // Track tool call IDs already emitted from stored history to avoid duplicates
@@ -222,7 +236,9 @@ function convertToAnthropicMessages(
   // Append tool results as a user message if provided (client-side tool execution
   // round). Skip any IDs already emitted from stored history to avoid duplicates.
   if (toolResults && toolResults.length > 0) {
-    const deduped = toolResults.filter((tr) => !emittedToolResultIds.has(tr.toolCallId));
+    const deduped = toolResults.filter(
+      (tr) => !emittedToolResultIds.has(tr.toolCallId),
+    );
     if (deduped.length > 0) {
       result.push({
         role: "user",
@@ -243,10 +259,14 @@ function convertToAnthropicMessages(
     const prev = merged.at(-1);
     if (prev && prev.role === msg.role) {
       // Merge content arrays (or promote string content to text block)
-      const prevContent: Anthropic.ContentBlockParam[] = Array.isArray(prev.content)
+      const prevContent: Anthropic.ContentBlockParam[] = Array.isArray(
+        prev.content,
+      )
         ? (prev.content as Anthropic.ContentBlockParam[])
         : [{ type: "text", text: prev.content as string }];
-      const msgContent: Anthropic.ContentBlockParam[] = Array.isArray(msg.content)
+      const msgContent: Anthropic.ContentBlockParam[] = Array.isArray(
+        msg.content,
+      )
         ? (msg.content as Anthropic.ContentBlockParam[])
         : [{ type: "text", text: msg.content as string }];
       prev.content = [...prevContent, ...msgContent];
@@ -269,7 +289,10 @@ async function runAgenticLoop(
   anthropic: Anthropic,
   messages: Anthropic.MessageParam[],
   tools: Anthropic.Tool[],
-  mcpCallTool: (name: string, input: Record<string, unknown>) => Promise<unknown>,
+  mcpCallTool: (
+    name: string,
+    input: Record<string, unknown>,
+  ) => Promise<unknown>,
   toolMetaMap: Record<string, string>,
   responseStream: ResponseStream,
 ): Promise<void> {
@@ -522,13 +545,21 @@ export const handler = awslambda.streamifyResponse(
       );
 
       // Load MCP tools (graceful degradation)
-      const { anthropicTools: mcpTools, callTool, close, toolMetaMap } = await getMcpTools();
+      const {
+        anthropicTools: mcpTools,
+        callTool,
+        close,
+        toolMetaMap,
+      } = await getMcpTools();
 
       // Build combined tools list (client-side + MCP)
       const clientTools = buildClientSideAnthropicTools();
       const combinedTools = [...clientTools, ...mcpTools];
 
-      console.log("Available tools:", combinedTools.map((t) => t.name));
+      console.log(
+        "Available tools:",
+        combinedTools.map((t) => t.name),
+      );
 
       // Run the agentic loop
       await runAgenticLoop(

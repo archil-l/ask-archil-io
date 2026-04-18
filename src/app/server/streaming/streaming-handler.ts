@@ -7,7 +7,7 @@ import { verifyAuthHeader } from "../auth/jwt-verifier.js";
 import { AgentUIMessage, DynamicToolUIPart } from "~/lib/message-schema";
 import { buildSystemPrompt } from "~/lib/agent/system-prompt.js";
 import { allTools } from "~/lib/agent/tools/index.js";
-import { getMcpTools } from "../mcp/mcp-client.js";
+import { getMcpTools, type McpToolMeta } from "../mcp/mcp-client.js";
 import z from "zod";
 
 const MODEL = "claude-haiku-4-5-20251001";
@@ -80,7 +80,7 @@ declare const awslambda: {
 type SSEEvent =
   | { type: "text-delta"; delta: string }
   | { type: "reasoning-delta"; delta: string }
-  | { type: "tool-meta"; toolMetaMap: Record<string, string> }
+  | { type: "tool-meta"; toolMetaMap: Record<string, McpToolMeta> }
   | { type: "tool-start"; toolCallId: string; toolName: string }
   | { type: "tool-input-delta"; toolCallId: string; delta: string }
   | { type: "tool-input-done"; toolCallId: string; input: unknown }
@@ -374,7 +374,7 @@ async function runAgenticLoop(
     name: string,
     input: Record<string, unknown>,
   ) => Promise<unknown>,
-  toolMetaMap: Record<string, string>,
+  toolMetaMap: Record<string, McpToolMeta>,
   responseStream: ResponseStream,
 ): Promise<void> {
   let currentMessages = [...messages];

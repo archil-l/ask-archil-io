@@ -50,10 +50,12 @@ export interface ServerInfo {
   tools: Map<string, Tool>;
 }
 
+export type McpToolMeta = { resourceUri: string; title?: string };
+
 export type McpToolsClient = {
   anthropicTools: Anthropic.Tool[];
   serverInfo: ServerInfo | null;
-  toolMetaMap: Map<string, string>;
+  toolMetaMap: Map<string, McpToolMeta>;
   callTool: (name: string, input: Record<string, unknown>) => Promise<unknown>;
   close: () => Promise<void>;
 };
@@ -139,11 +141,14 @@ export async function getMcpTools(): Promise<McpToolsClient> {
 
     // Build tool → UI resource URI map using the official helper.
     // This is sent to the client so it can fetch resources directly from the MCP proxy.
-    const toolMetaMap = new Map<string, string>();
+    const toolMetaMap = new Map<string, McpToolMeta>();
     for (const t of tools) {
       const uiResourceUri = getToolUiResourceUri(t);
       if (uiResourceUri) {
-        toolMetaMap.set(t.name, uiResourceUri);
+        toolMetaMap.set(t.name, {
+          resourceUri: uiResourceUri,
+          title: t.title,
+        });
       }
     }
 

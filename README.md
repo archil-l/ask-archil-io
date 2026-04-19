@@ -140,11 +140,13 @@ Tools that run on the client (no server `execute` function) follow this pattern:
 
 ### Available Tools
 
-| Tool          | Input | Output                                 | Purpose                |
-| ------------- | ----- | -------------------------------------- | ---------------------- |
-| `toggleTheme` | `{}`  | `{ toggled, previousTheme, newTheme }` | Toggle light/dark      |
-| `checkTheme`  | `{}`  | `{ currentTheme }`                     | Read current theme     |
-| `showResume`  | `{}`  | `{ displayed }`                        | Display resume preview |
+| Tool               | Type              | Input | Purpose                                                      |
+| ------------------ | ----------------- | ----- | ------------------------------------------------------------ |
+| `toggleTheme`      | Client-side       | `{}`  | Toggle light/dark mode                                       |
+| `checkTheme`       | Client-side       | `{}`  | Read current theme                                           |
+| `showResume`       | Client-side       | `{}`  | Display resume preview                                       |
+| `get-resume`       | MCP App (server)  | `{}`  | Interactive PDF resume viewer rendered in iframe             |
+| `get-architecture` | MCP App (server)  | `{}`  | Animated architecture diagram — triggered by "How is this page built?" |
 
 ### System Prompt
 

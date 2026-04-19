@@ -29,8 +29,9 @@ AI-powered personal website with two AWS Lambda functions sharing one codebase:
 - Validates incoming JWT, then streams Claude Haiku responses via SSE
 - Uses Vercel AI SDK (`ai`) with `x-vercel-ai-ui-message-stream: v1` protocol
 - Executes up to 5 tool-use steps (`stopWhen: stepCountIs(5)`)
-- Tools are **client-side only** (no `execute` on server): `toggleTheme`, `checkTheme`, `showResume`, plus MCP tools
-- MCP tools come from an external server (`MCP_SERVER_URL`); degrades gracefully if unavailable
+- Client-side tools (no `execute` on server): `toggleTheme`, `checkTheme`, `showResume`
+- MCP tools come from `mcp-ask-archil` server (`MCP_SERVER_URL`): `get-resume`, `get-architecture`, plus others; degrades gracefully if unavailable
+- MCP Apps (`get-resume`, `get-architecture`) render as sandboxed iframes via AppBridge in `McpToolUI`
 
 **Client Flow:**
 1. Page loads → fetches JWT from `/api/jwt-token` (auto-refreshes when <5 min remain)

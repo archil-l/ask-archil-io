@@ -392,7 +392,7 @@ export function McpToolUI({ tool, mcpProxyEndpoint }: McpToolUIProps) {
   return (
     <div className="flex w-full flex-col rounded-lg border bg-card">
       {/* Header */}
-      <div className="flex items-center gap-2 border-b px-3 py-2">
+      <div className={cn("flex items-center gap-2 px-3 py-2", (!isLoading || error) && "border-b")}>
         <AppWindowIcon className="size-4 shrink-0 text-muted-foreground" />
         <span className="truncate text-sm font-medium">{appTitle}</span>
         {isLoading && <Spinner className="ml-auto size-4 shrink-0 text-muted-foreground" />}
@@ -408,7 +408,7 @@ export function McpToolUI({ tool, mcpProxyEndpoint }: McpToolUIProps) {
       {/* iframe — hidden while loading so the sandbox can initialize in the background */}
       <iframe
         ref={iframeRef}
-        className={cn("w-full border-none bg-transparent", isLoading ? "hidden" : "block")}
+        className={cn("w-full border-none bg-transparent rounded-b-lg overflow-hidden", isLoading ? "hidden" : "block")}
         style={{ height: "600px" }}
       />
     </div>

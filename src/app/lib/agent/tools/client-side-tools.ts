@@ -46,17 +46,3 @@ export const checkThemeTool = tool({
   inputSchema: z.object({}),
   outputSchema: themeCheckOutput,
 });
-
-// Show Resume Tool
-export const showResumeOutput = z.object({
-  displayed: z.boolean(),
-});
-
-export type ShowResumeOutputType = z.infer<typeof showResumeOutput>;
-
-export const showResumeTool = tool({
-  description:
-    "Display Archil Lelashvili's resume. Call this when the user asks to see the resume, view CV, or wants to know about professional experience and qualifications.",
-  inputSchema: z.object({}),
-  outputSchema: showResumeOutput,
-});

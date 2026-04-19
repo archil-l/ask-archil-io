@@ -2,8 +2,6 @@ import { AddToolOutputFn } from "~/lib/message-schema";
 import { useThemeContext } from "~/contexts/theme-context";
 import { createToggleThemeHandler } from "~/lib/agent/tools/toggle-theme";
 import { createCheckThemeHandler } from "~/lib/agent/tools/check-theme";
-import { createShowResumeHandler } from "~/lib/agent/tools/show-resume";
-
 export type { AddToolOutputFn };
 
 /**
@@ -27,7 +25,6 @@ export function useClientToolHandlers(): ClientToolHandlers {
   return {
     toggleTheme: createToggleThemeHandler(theme, toggleTheme),
     checkTheme: createCheckThemeHandler(theme),
-    showResume: createShowResumeHandler,
     // Add more client-side tool handlers here as needed:
     // copyToClipboard: createCopyToClipboardHandler(...),
     // playSound: createPlaySoundHandler(...),

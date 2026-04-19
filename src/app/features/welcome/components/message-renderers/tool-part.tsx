@@ -15,7 +15,6 @@ import {
   ThemeCheckOutputType,
 } from "~/lib/agent/tools/client-side-tools";
 import { WebPreviewToolUI } from "~/lib/agent/tools/web-preview";
-import { ShowResumeToolUI } from "~/lib/agent/tools/show-resume";
 import { McpToolUI } from "~/lib/agent/tools/mcp-ui/mcp-tool-ui";
 import { useConversationContext } from "~/contexts/conversation-context";
 
@@ -70,12 +69,6 @@ export function ToolPart({ part, messageId, index }: ToolPartProps) {
         tool={dynPart}
         url={url}
       />
-    );
-  }
-
-  if (toolName === "showResume" && dynPart) {
-    return (
-      <ShowResumeToolUI key={`${messageId}-tool-${index}`} tool={dynPart} />
     );
   }
 

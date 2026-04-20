@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ask.archil.io/sitemap.xml

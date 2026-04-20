@@ -26,8 +26,14 @@ if (cloudfrontUrl) {
   app.use("/logo-dark.png", (req, res) => {
     res.redirect(302, `${cloudfrontUrl}/logo-dark.png`);
   });
-  app.use("/logo-light.png", (req, res) => {
-    res.redirect(302, `${cloudfrontUrl}/logo-light.png`);
+  app.use("/profile-pic-og.png", (req, res) => {
+    res.redirect(302, `${cloudfrontUrl}/profile-pic-og.png`);
+  });
+  app.use("/robots.txt", (req, res) => {
+    res.redirect(302, `${cloudfrontUrl}/robots.txt`);
+  });
+  app.use("/sitemap.xml", (req, res) => {
+    res.redirect(302, `${cloudfrontUrl}/sitemap.xml`);
   });
   app.use("/theme-init.js", (req, res) => {
     res.redirect(302, `${cloudfrontUrl}/theme-init.js`);

@@ -53,11 +53,6 @@ export const meta: MetaFunction = () => [
     name: "twitter:image",
     content: "https://ask.archil.io/profile-pic-og.png",
   },
-  {
-    tagName: "script",
-    type: "application/ld+json",
-    dangerouslySetInnerHTML: { __html: JSON_LD },
-  },
 ];
 
 export default function Index() {
@@ -65,6 +60,10 @@ export default function Index() {
     useLoaderData<typeof loader>();
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON_LD }}
+      />
       <noscript>
         <h1>Archil Lelashvili – Software Engineer</h1>
         <p>

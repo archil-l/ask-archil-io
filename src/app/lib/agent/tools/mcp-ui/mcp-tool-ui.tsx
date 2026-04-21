@@ -118,8 +118,6 @@ function loadSandboxProxy(
   // Prevent reload if already loaded
   if (iframe.src) return Promise.resolve(false);
 
-  iframe.setAttribute("sandbox", "allow-scripts allow-forms");
-
   const readyNotification: McpUiSandboxProxyReadyNotification["method"] =
     "ui/notifications/sandbox-proxy-ready";
 
@@ -405,9 +403,10 @@ export function McpToolUI({ tool, mcpProxyEndpoint }: McpToolUIProps) {
         </div>
       )}
 
-      {/* iframe — hidden while loading so the sandbox can initialize in the background */}
+      {/* iframe — sandbox attr must be set before src to avoid Chrome navigation-blocked errors */}
       <iframe
         ref={iframeRef}
+        sandbox="allow-scripts allow-forms"
         className={cn("w-full border-none bg-transparent rounded-b-lg overflow-hidden", isLoading ? "hidden" : "block")}
         style={{ height: "600px" }}
       />

@@ -11,6 +11,7 @@ import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as route53 from "aws-cdk-lib/aws-route53";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as targets from "aws-cdk-lib/aws-route53-targets";
+import * as logs from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -38,7 +39,12 @@ export class WebAppStack extends cdk.Stack {
 
     // Environment-specific configuration from envConfig
     const lambdaMemory = envConfig.lambdaMemory;
-    const logRetentionDays = envConfig.logRetentionDays;
+
+    const logGroup = new logs.LogGroup(this, "web-app-log-group", {
+      logGroupName: `/aws/lambda/ask-archil-io-${envConfig.stage}-web-app-function`,
+      retention: envConfig.logRetention,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
 
     // S3 bucket for static assets
     const assetsBucket = new s3.Bucket(this, "remix-assets-bucket", {
@@ -180,7 +186,7 @@ export class WebAppStack extends cdk.Stack {
         AWS_LWA_ASYNC_INIT: "true",
       },
       layers: [webAdapterLayer],
-      logRetention: envConfig.logRetentionDays,
+      logGroup,
     });
 
     // Grant Lambda function read access to S3 bucket

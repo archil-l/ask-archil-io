@@ -2,6 +2,7 @@ import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Runtime, Architecture } from "aws-cdk-lib/aws-lambda";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as logs from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -34,6 +35,12 @@ export class LLMStreamStack extends cdk.Stack {
       `mcp-server-client-access-role-arn-${envConfig.stage}`,
     );
 
+    const logGroup = new logs.LogGroup(this, "llm-stream-log-group", {
+      logGroupName: `/aws/lambda/ask-archil-io-${envConfig.stage}-llm-stream-function`,
+      retention: envConfig.logRetention,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
     // Lambda function for LLM streaming
     const streamingFunction = new lambda.Function(this, "llm-stream-function", {
       functionName: `ask-archil-io-${envConfig.stage}-llm-stream-function`,
@@ -54,7 +61,7 @@ export class LLMStreamStack extends cdk.Stack {
         // Client access role for assuming temporary credentials
         CLIENT_ACCESS_ROLE_ARN: clientAccessRoleArn,
       },
-      logRetention: envConfig.logRetentionDays,
+      logGroup,
     });
 
     // Grant permission to invoke MCP server Lambda Function URL

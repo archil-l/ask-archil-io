@@ -2,6 +2,7 @@ import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Runtime, Architecture } from "aws-cdk-lib/aws-lambda";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as logs from "aws-cdk-lib/aws-logs";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as route53 from "aws-cdk-lib/aws-route53";
@@ -42,6 +43,12 @@ export class McpProxyStack extends cdk.Stack {
       `mcp-server-client-access-role-arn-${envConfig.stage}`,
     );
 
+    const logGroup = new logs.LogGroup(this, "mcp-proxy-log-group", {
+      logGroupName: `/aws/lambda/ask-archil-io-${envConfig.stage}-mcp-proxy-function`,
+      retention: envConfig.logRetention,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
     // Lambda function for MCP proxy
     const mcpProxyFunction = new lambda.Function(
       this,
@@ -62,7 +69,7 @@ export class McpProxyStack extends cdk.Stack {
           MCP_SERVER_URL: cdk.Fn.join("", [mcpServerFunctionUrl, "mcp"]),
           CLIENT_ACCESS_ROLE_ARN: clientAccessRoleArn,
         },
-        logRetention: envConfig.logRetentionDays,
+        logGroup,
       },
     );
 

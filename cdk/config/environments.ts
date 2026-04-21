@@ -8,6 +8,8 @@
  * --context environment=dev or --context environment=prod when running CDK commands.
  */
 
+import * as logs from "aws-cdk-lib/aws-logs";
+
 export enum Stage {
   prod = "prod",
 }
@@ -21,8 +23,8 @@ export interface EnvironmentConfig {
   region: string;
   /** Lambda memory in MB */
   lambdaMemory: number;
-  /** CloudWatch Logs retention in days */
-  logRetentionDays: number;
+  /** CloudWatch Logs retention */
+  logRetention: logs.RetentionDays;
   /** CloudFront HTML cache TTL in minutes */
   htmlCacheTtlMinutes: number;
   /** CloudFront assets cache TTL in days */
@@ -41,7 +43,7 @@ const environments: Record<Stage, EnvironmentConfig> = {
     accountId: "260448775808",
     region: "us-east-1",
     lambdaMemory: 1024,
-    logRetentionDays: 30,
+    logRetention: logs.RetentionDays.ONE_MONTH,
     htmlCacheTtlMinutes: 60,
     assetsCacheTtlDays: 30,
     domainName: "ask.archil.io",

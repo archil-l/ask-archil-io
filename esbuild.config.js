@@ -32,7 +32,7 @@ const commonExternal = [
 const buildWebApp = build({
   entryPoints: ["deployment/server.js"],
   bundle: true,
-  outfile: "dist/lambda-pkg/index.js",
+  outfile: "dist/lambda-pkg/web-app-handler.js",
   platform: "node",
   format: "cjs",
   target: "node24",
@@ -106,7 +106,7 @@ Promise.all([buildWebApp, buildStreaming, buildMcpProxy])
     chmodSync(runShDest, 0o755);
     console.log("📜 Copied run.sh bootstrap script");
 
-    console.log("✅ Built web app Lambda: dist/lambda-pkg/index.js");
+    console.log("✅ Built web app Lambda: dist/lambda-pkg/web-app-handler.js");
     console.log(
       "✅ Built streaming Lambda: dist/streaming-lambda/streaming-handler.js",
     );

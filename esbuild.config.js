@@ -1,5 +1,9 @@
 import { build } from "esbuild";
-import { writeFileSync, mkdirSync } from "fs";
+import { writeFileSync, mkdirSync, copyFileSync, chmodSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Common external modules
 const commonExternal = [
@@ -28,7 +32,7 @@ const commonExternal = [
 const buildWebApp = build({
   entryPoints: ["deployment/server.js"],
   bundle: true,
-  outfile: "dist/lambda-pkg/web-app-handler.js",
+  outfile: "dist/lambda-pkg/index.js",
   platform: "node",
   format: "cjs",
   target: "node24",
@@ -95,7 +99,14 @@ Promise.all([buildWebApp, buildStreaming, buildMcpProxy])
       JSON.stringify({ type: "commonjs" }, null, 2),
     );
 
-    console.log("✅ Built web app Lambda: dist/lambda-pkg/web-app-handler.js");
+    // Copy run.sh bootstrap script for Lambda Web Adapter
+    const runShSrc = join(__dirname, "src/app/run.sh");
+    const runShDest = join(__dirname, "dist/lambda-pkg/run.sh");
+    copyFileSync(runShSrc, runShDest);
+    chmodSync(runShDest, 0o755);
+    console.log("📜 Copied run.sh bootstrap script");
+
+    console.log("✅ Built web app Lambda: dist/lambda-pkg/index.js");
     console.log(
       "✅ Built streaming Lambda: dist/streaming-lambda/streaming-handler.js",
     );

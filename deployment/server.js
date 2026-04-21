@@ -2,7 +2,6 @@ import { createRequestHandler } from "@react-router/express";
 import compression from "compression";
 import express from "express";
 import morgan from "morgan";
-import serverless from "serverless-http";
 
 const app = express();
 
@@ -79,4 +78,7 @@ app.use(async (req, res, next) => {
   }
 });
 
-export const handler = serverless(app);
+const PORT = parseInt(process.env.PORT || "8080", 10);
+app.listen(PORT, () => {
+  console.log(`Web app listening on port ${PORT}`);
+});

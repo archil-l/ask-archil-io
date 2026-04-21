@@ -1,6 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
-import { Runtime, Architecture } from "aws-cdk-lib/aws-lambda";
+import { Runtime, Architecture, LayerVersion } from "aws-cdk-lib/aws-lambda";
 import * as apigatewayv2 from "aws-cdk-lib/aws-apigatewayv2";
 import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import * as s3 from "aws-cdk-lib/aws-s3";
@@ -146,13 +146,21 @@ export class WebAppStack extends cdk.Stack {
       },
     );
 
-    // Lambda function using custom code asset
-    const remixFunction = new lambda.Function(this, "web-app-function", {
+    // Lambda Web Adapter layer for proper HTTP streaming support
+    // See: https://github.com/awslabs/aws-lambda-web-adapter
+    const webAdapterLayer = LayerVersion.fromLayerVersionArn(
+      this,
+      "lambda-web-adapter",
+      `arn:aws:lambda:${this.region}:753240598075:layer:LambdaAdapterLayerX86:25`,
+    );
+
+    // Lambda function for MCP server
+    const remixFunction = new lambda.Function(this, "mcp-server-function", {
       functionName: `ask-archil-io-${envConfig.stage}-web-app-function`,
       code: lambda.Code.fromAsset(
         path.join(__dirname, "../../../dist/lambda-pkg"),
       ),
-      handler: "web-app-handler.handler",
+      handler: "run.sh",
       runtime: Runtime.NODEJS_24_X,
       memorySize: lambdaMemory,
       timeout: cdk.Duration.seconds(30),
@@ -167,8 +175,12 @@ export class WebAppStack extends cdk.Stack {
         JWT_EXPIRY_HOURS: "1",
         LLM_STREAM_URL: llmStreamStack.functionUrl.url,
         MCP_PROXY_ENDPOINT: mcpProxyStack.proxyEndpoint,
+        AWS_LAMBDA_EXEC_WRAPPER: "/opt/bootstrap",
+        PORT: "8080",
+        AWS_LWA_ASYNC_INIT: "true",
       },
-      logRetention: logRetentionDays,
+      layers: [webAdapterLayer],
+      logRetention: envConfig.logRetentionDays,
     });
 
     // Grant Lambda function read access to S3 bucket
@@ -178,24 +190,28 @@ export class WebAppStack extends cdk.Stack {
     secretsStack.jwtSecret.grantRead(remixFunction);
 
     // Deploy static assets to S3 bucket
-    const assetsDeployment = new s3deploy.BucketDeployment(this, "remix-assets-deployment", {
-      sources: [
-        s3deploy.Source.asset(path.join(__dirname, "../../../public")),
-        s3deploy.Source.asset(path.join(__dirname, "../../../dist/client"), {
-          exclude: ["**/*.html"], // HTML files are handled by Lambda
-        }),
-      ],
-      destinationBucket: assetsBucket,
-      distribution, // Invalidate CloudFront cache on deployment
-      distributionPaths: ["/*"],
-    });
+    const assetsDeployment = new s3deploy.BucketDeployment(
+      this,
+      "remix-assets-deployment",
+      {
+        sources: [
+          s3deploy.Source.asset(path.join(__dirname, "../../../public")),
+          s3deploy.Source.asset(path.join(__dirname, "../../../dist/client"), {
+            exclude: ["**/*.html"], // HTML files are handled by Lambda
+          }),
+        ],
+        destinationBucket: assetsBucket,
+        distribution, // Invalidate CloudFront cache on deployment
+        distributionPaths: ["/*"],
+      },
+    );
 
     // Versioned bucket requires DeleteObjectVersion for the --delete sync flag
     assetsDeployment.handlerRole?.addToPrincipalPolicy(
       new iam.PolicyStatement({
         actions: ["s3:DeleteObjectVersion"],
         resources: [assetsBucket.arnForObjects("*")],
-      })
+      }),
     );
 
     // HTTP API Gateway (v2) - no automatic /prod/ path

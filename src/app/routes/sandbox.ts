@@ -218,8 +218,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Build CSP header
   const cspHeader = buildCspHeader(cspConfig);
 
-  // Derive the allowed host origin server-side (same origin as this sandbox route)
-  const hostOrigin = url.origin;
+  // Derive the allowed host origin server-side (same origin as this sandbox route).
+  // Use X-Forwarded-Proto to get the real scheme — behind API Gateway / LWA the
+  // internal request arrives as http:// even when the client used https://.
+  const proto = request.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "");
+  const hostOrigin = `${proto}://${url.host}`;
 
   // Generate and return the HTML
   const html = generateSandboxHtml(hostOrigin);

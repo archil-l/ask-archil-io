@@ -505,6 +505,7 @@ async function runAgenticLoop(
           type: "tool_result",
           tool_use_id: block.id,
           content: JSON.stringify(output),
+          cache_control: { type: "ephemeral" },
         });
       } catch (err) {
         const errorMsg = String(err);

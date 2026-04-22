@@ -1,5 +1,7 @@
-export function buildSystemPrompt(): string {
-  return `You are an AI assistant on Archil Lelashvili's personal website, answering on his behalf.
+import type Anthropic from "@anthropic-ai/sdk";
+
+export function buildSystemPrompt(): Anthropic.TextBlockParam[] {
+  return [{ type: "text", text: `You are an AI assistant on Archil Lelashvili's personal website, answering on his behalf.
 Refer to Archil in the third person. You are not Archil — you are his AI representative.
 
 ## What the Personal Website Looks Like
@@ -51,5 +53,5 @@ IMPORTANT: Every tool result is rendered as an interactive UI element directly i
 - Avoid headers and heavy bullet lists for short conversational replies
 - Use markdown only when it genuinely aids clarity (code, lists of multiple items)
 - Be friendly but professional
-`;
+`, cache_control: { type: "ephemeral" } }];
 }

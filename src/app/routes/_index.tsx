@@ -24,8 +24,22 @@ const JSON_LD = JSON.stringify({
   jobTitle: "Software Engineer",
   worksFor: { "@type": "Organization", name: "Amazon Robotics" },
   url: "https://ask.archil.io",
+  alumniOf: [
+    { "@type": "CollegeOrUniversity", name: "Northeastern University" },
+    { "@type": "CollegeOrUniversity", name: "FH Technikum Wien" },
+  ],
+  knowsAbout: [
+    "React",
+    "TypeScript",
+    "AWS",
+    "Agentic AI",
+    "Full-Stack Web Development",
+    "MCP",
+    "Node.js",
+  ],
   sameAs: [
     "https://www.linkedin.com/in/archil-l",
+    "https://github.com/archil-l",
     "https://github.com/archil-l/ask-archil-io",
   ],
 });
@@ -65,13 +79,53 @@ export default function Index() {
         dangerouslySetInnerHTML={{ __html: JSON_LD }}
       />
       <noscript>
-        <h1>Archil Lelashvili – Software Engineer</h1>
+        <h1>Archil Lelashvili – Software Engineer &amp; AI Builder</h1>
         <p>
-          Software engineer at Amazon Robotics building agentic AI systems and
-          full-stack web applications. Ask the AI assistant anything about my
-          work, projects, and engineering journey.
+          Software engineer with 5 years of experience building enterprise web
+          applications. Currently at Amazon Robotics, developing agentic AI
+          infrastructure and full-stack applications for robotic systems using
+          React, TypeScript, and AWS.
         </p>
-        <p>Experience · How this page is built · Contact</p>
+
+        <h2>Experience</h2>
+        <h3>Software Dev Engineer II – Amazon Robotics (Jan 2025 – Present)</h3>
+        <p>
+          Architecting infrastructure-as-code for agentic AI systems including
+          MCP servers, agents, knowledge bases, and memory management using AWS
+          Bedrock, AgentCore, and the Strands framework. Building full-stack
+          agentic web applications with React Router v7 and React 19.
+        </p>
+
+        <h3>Software Engineer II – Quickbase Inc. (Feb 2024 – Jan 2025)</h3>
+        <p>
+          Implemented WCAG 2.1 accessibility features and led a team of four
+          engineering co-ops to deliver customer-facing features using React.
+        </p>
+
+        <h3>Software Engineer I – Quickbase Inc. (Jul 2022 – Jan 2024)</h3>
+        <p>
+          Developed reusable React components for flagship forms features and
+          engineered APIs in Java and C++.
+        </p>
+
+        <h2>Skills</h2>
+        <p>
+          JavaScript, TypeScript, React 19, React Router v7, Node.js, AWS
+          Lambda, AWS CDK, AWS Bedrock, AgentCore, MCP, Java, C++, Jest,
+          Cypress, CI/CD, WCAG 2.1 Accessibility
+        </p>
+
+        <h2>Education</h2>
+        <p>
+          MS in Information Systems – Northeastern University (GPA 3.71) ·
+          BSc in Business Informatics – FH Technikum Wien (GPA 3.7)
+        </p>
+
+        <h2>Contact</h2>
+        <p>
+          <a href="https://www.linkedin.com/in/archil-l">LinkedIn</a> ·{" "}
+          <a href="https://github.com/archil-l">GitHub</a>
+        </p>
       </noscript>
       <Welcome
         streamingEndpoint={streamingEndpoint}

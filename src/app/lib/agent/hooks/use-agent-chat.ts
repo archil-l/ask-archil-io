@@ -70,37 +70,46 @@ function createAssistantMessage(): AgentUIMessage {
 function stripLargeFieldsForTransport(
   messages: AgentUIMessage[],
 ): AgentUIMessage[] {
-  return messages.map((msg) => ({
-    ...msg,
-    parts: msg.parts.map((part) => {
+  let anyMessageChanged = false;
+
+  const strippedMessages = messages.map((msg) => {
+    let anyPartChanged = false;
+
+    const strippedParts = msg.parts.map((part) => {
       if (
         (part.type === "dynamic-tool" || part.type.startsWith("tool-")) &&
         "output" in part &&
         part.output != null
       ) {
         const output = part.output as Record<string, unknown>;
+        const sc = output.structuredContent;
         if (
-          output.structuredContent != null &&
-          typeof output.structuredContent === "object"
+          sc != null &&
+          typeof sc === "object" &&
+          "pdfBase64" in (sc as Record<string, unknown>)
         ) {
-          const sc = output.structuredContent as Record<string, unknown>;
-          if ("pdfBase64" in sc) {
-            return {
-              ...part,
-              output: {
-                ...output,
-                structuredContent: {
-                  ...sc,
-                  pdfBase64: "[PDF_DATA_OMITTED]",
-                },
+          anyPartChanged = true;
+          return {
+            ...part,
+            output: {
+              ...output,
+              structuredContent: {
+                ...(sc as Record<string, unknown>),
+                pdfBase64: "[PDF_DATA_OMITTED]",
               },
-            };
-          }
+            },
+          };
         }
       }
       return part;
-    }),
-  }));
+    });
+
+    if (!anyPartChanged) return msg;
+    anyMessageChanged = true;
+    return { ...msg, parts: strippedParts };
+  });
+
+  return anyMessageChanged ? strippedMessages : messages;
 }
 
 /**
@@ -130,6 +139,9 @@ export function useAgentChat(options: UseAgentChatOptions): AgentChatResult {
   const messagesRef = useRef<AgentUIMessage[]>(messages);
   messagesRef.current = messages;
 
+  // Cache the serialized stable history to avoid re-serializing on every send
+  const serializedCacheRef = useRef<{ messageCount: number; json: string } | null>(null);
+
   const doStream = useCallback(
     async (
       allMessages: AgentUIMessage[],
@@ -142,6 +154,27 @@ export function useAgentChat(options: UseAgentChatOptions): AgentChatResult {
       setStatus("submitted");
       setError(undefined);
 
+      // Split into stable history (already sent) and the new tail message
+      const stableMessages = allMessages.slice(0, -1);
+      const newMessage = allMessages[allMessages.length - 1];
+
+      const strippedStable = stripLargeFieldsForTransport(stableMessages);
+
+      const cache = serializedCacheRef.current;
+      let stableJson: string;
+      if (cache && cache.messageCount === strippedStable.length) {
+        stableJson = cache.json;
+      } else {
+        stableJson = JSON.stringify(strippedStable);
+        serializedCacheRef.current = { messageCount: strippedStable.length, json: stableJson };
+      }
+
+      const strippedNew = stripLargeFieldsForTransport([newMessage])[0];
+      const bodyJson =
+        stableMessages.length === 0
+          ? JSON.stringify({ messages: [strippedNew], toolResults })
+          : `{"messages":[${stableJson.slice(1, -1)},${JSON.stringify(strippedNew)}]${toolResults ? `,"toolResults":${JSON.stringify(toolResults)}` : ""}}`;
+
       let response: Response;
       try {
         response = await fetch(streamingEndpoint, {
@@ -150,10 +183,7 @@ export function useAgentChat(options: UseAgentChatOptions): AgentChatResult {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            messages: stripLargeFieldsForTransport(allMessages),
-            toolResults,
-          }),
+          body: bodyJson,
         });
       } catch (err) {
         setStatus("error");

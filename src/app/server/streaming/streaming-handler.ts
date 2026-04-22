@@ -415,7 +415,7 @@ async function runAgenticLoop(
 
     // Track current tool call id for streaming input deltas
     let currentToolCallId: string | null = null;
-    console.log(currentMessages);
+    console.log("current messages", JSON.stringify(currentMessages));
 
     const stream = anthropic.messages.stream({
       model: MODEL,
@@ -657,7 +657,7 @@ export const handler = awslambda.streamifyResponse(
         toolResults,
       );
 
-      console.log(anthropicMessages);
+      console.log("antrhpic messages", JSON.stringify(anthropicMessages));
 
       // Load MCP tools (graceful degradation)
       const {

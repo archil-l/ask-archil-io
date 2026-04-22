@@ -1,9 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
-import {
-  getToolUiResourceUri,
-} from "@modelcontextprotocol/ext-apps/app-bridge";
+import { getToolUiResourceUri } from "@modelcontextprotocol/ext-apps/app-bridge";
 import { createSignedFetcher } from "aws-sigv4-fetch";
 import { STSClient, AssumeRoleCommand } from "@aws-sdk/client-sts";
 import type Anthropic from "@anthropic-ai/sdk";
@@ -152,10 +150,7 @@ export async function getMcpTools(): Promise<McpToolsClient> {
       }
     }
 
-    console.log(
-      "MCP tools with UI resources:",
-      [...toolMetaMap.keys()],
-    );
+    console.log("MCP tools with UI resources:", [...toolMetaMap.keys()]);
 
     // Prepare server info object
     const serverInfo: ServerInfo = {

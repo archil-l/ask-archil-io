@@ -507,7 +507,7 @@ async function runAgenticLoop(
         toolResultContent.push({
           type: "tool_result",
           tool_use_id: block.id,
-          content: JSON.stringify(output),
+          content: JSON.stringify(stripLargeToolOutput(output)),
           cache_control: { type: "ephemeral" },
         });
       } catch (err) {

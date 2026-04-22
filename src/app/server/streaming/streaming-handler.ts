@@ -150,6 +150,8 @@ function stripLargeToolOutput(output: unknown): unknown {
     });
   }
 
+  console.log(Object.keys(result));
+
   return result;
 }
 
@@ -413,6 +415,7 @@ async function runAgenticLoop(
 
     // Track current tool call id for streaming input deltas
     let currentToolCallId: string | null = null;
+    console.log(currentMessages);
 
     const stream = anthropic.messages.stream({
       model: MODEL,
@@ -653,6 +656,8 @@ export const handler = awslambda.streamifyResponse(
         inputMessages,
         toolResults,
       );
+
+      console.log(anthropicMessages);
 
       // Load MCP tools (graceful degradation)
       const {

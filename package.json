@@ -44,6 +44,8 @@
     "@react-router/express": "^7.8.2",
     "@react-router/node": "^7.8.2",
     "@react-router/serve": "^7.8.2",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.0",
     "@rive-app/react-webgl2": "^4.27.0",
     "@smithy/protocol-http": "^5.3.12",
     "@smithy/signature-v4": "^5.3.12",
@@ -79,6 +81,7 @@
     "streamdown": "^2.2.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
+    "three": "^0.184.0",
     "tokenlens": "^1.3.1",
     "use-stick-to-bottom": "^1.1.3",
     "zod": "^4.3.6"

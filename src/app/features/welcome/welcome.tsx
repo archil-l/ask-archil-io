@@ -11,6 +11,8 @@ import { ScrollToBottomButton } from "./components/scroll-to-bottom-button";
 import { useAutoScroll } from "./hooks/use-auto-scroll";
 import { useConversationContext } from "~/contexts/conversation-context";
 import { WelcomeHeader } from "./components/welcome-header";
+import { SceneCanvas } from "./components/scene/scene-canvas";
+import { useThemeContext } from "~/contexts/theme-context";
 
 interface WelcomeProps {
   streamingEndpoint: string;
@@ -39,6 +41,7 @@ export default function Welcome({ streamingEndpoint, mcpProxyEndpoint }: Welcome
 
 function WelcomeContent() {
   const { messages, isLoading } = useConversationContext();
+  const { theme } = useThemeContext();
   const { showScrollButton, scrollToBottom } = useAutoScroll({
     messages,
     isLoading,
@@ -49,6 +52,8 @@ function WelcomeContent() {
 
   return (
     <div className="relative h-full w-full">
+      <SceneCanvas theme={theme} isLoading={isLoading} />
+
       {/* Header with icon buttons */}
       <WelcomeHeader />
 

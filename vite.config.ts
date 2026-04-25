@@ -10,4 +10,7 @@ export default defineConfig({
       process.env.TURNSTILE_SITE_KEY || "",
     ),
   },
+  ssr: {
+    external: ["three", "@react-three/fiber", "@react-three/drei"],
+  },
 });

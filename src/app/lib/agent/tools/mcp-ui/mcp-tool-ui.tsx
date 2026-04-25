@@ -61,14 +61,17 @@ async function fetchUiResource(
   // MCP Streamable HTTP transport may respond with SSE even for single-request calls.
   // Parse the first `data:` line from the event stream when that happens.
   const contentType = response.headers.get("content-type") ?? "";
-  let json: { result?: { contents?: Array<Record<string, unknown>> }; error?: { message?: string } };
+  let json: {
+    result?: { contents?: Array<Record<string, unknown>> };
+    error?: { message?: string };
+  };
   if (contentType.includes("text/event-stream")) {
     const text = await response.text();
     const dataLine = text.split("\n").find((line) => line.startsWith("data:"));
     if (!dataLine) throw new Error("No data line in SSE response");
     json = JSON.parse(dataLine.slice(5).trim());
   } else {
-    json = await response.json() as {
+    json = (await response.json()) as {
       result?: { contents?: Array<Record<string, unknown>> };
       error?: { message?: string };
     };
@@ -92,7 +95,12 @@ async function fetchUiResource(
   };
 
   if (content.mimeType !== RESOURCE_MIME_TYPE) {
-    log.warn("Unexpected MIME type:", content.mimeType, "expected:", RESOURCE_MIME_TYPE);
+    log.warn(
+      "Unexpected MIME type:",
+      content.mimeType,
+      "expected:",
+      RESOURCE_MIME_TYPE,
+    );
     return null;
   }
 
@@ -210,7 +218,11 @@ export function McpToolUI({ tool, mcpProxyEndpoint }: McpToolUIProps) {
 
         // Fetch the UI resource HTML directly from the MCP proxy
         log.info("Fetching UI resource:", tool.resourceUri);
-        const uiResource = await fetchUiResource(tool.resourceUri!, mcpProxyEndpoint, jwtToken);
+        const uiResource = await fetchUiResource(
+          tool.resourceUri!,
+          mcpProxyEndpoint,
+          jwtToken,
+        );
         if (!uiResource) {
           throw new Error(`No UI resource found for ${tool.resourceUri}`);
         }
@@ -343,7 +355,10 @@ export function McpToolUI({ tool, mcpProxyEndpoint }: McpToolUIProps) {
         );
 
         // Send HTML to sandbox along with any permissions declared in the resource metadata
-        log.info("Sending HTML to sandbox...", permissions ? `(permissions: ${JSON.stringify(permissions)})` : "");
+        log.info(
+          "Sending HTML to sandbox...",
+          permissions ? `(permissions: ${JSON.stringify(permissions)})` : "",
+        );
         await appBridge.sendSandboxResourceReady({ html, permissions });
 
         // Wait for app to initialize
@@ -383,31 +398,45 @@ export function McpToolUI({ tool, mcpProxyEndpoint }: McpToolUIProps) {
         });
       }
     };
-  }, [tool.resourceUri, mcpProxyEndpoint, tool.input, tool.output, sandboxUrl.href]);
+  }, [
+    tool.resourceUri,
+    mcpProxyEndpoint,
+    tool.input,
+    tool.output,
+    sandboxUrl.href,
+  ]);
 
   const appTitle = tool.title || tool.toolName;
 
   return (
-    <div className="flex w-full flex-col rounded-lg border bg-card">
+    <div className="flex w-full flex-col rounded-lg border bg-card shadow-md">
       {/* Header */}
-      <div className={cn("flex items-center gap-2 px-3 py-2", (!isLoading || error) && "border-b")}>
+      <div
+        className={cn(
+          "flex items-center gap-2 px-3 py-2",
+          (!isLoading || error) && "border-b",
+        )}
+      >
         <AppWindowIcon className="size-4 shrink-0 text-muted-foreground" />
         <span className="truncate text-sm font-medium">{appTitle}</span>
-        {isLoading && <Spinner className="ml-auto size-4 shrink-0 text-muted-foreground" />}
+        {isLoading && (
+          <Spinner className="ml-auto size-4 shrink-0 text-muted-foreground" />
+        )}
       </div>
 
       {/* Error state */}
       {error && !isLoading && (
-        <div className="px-4 py-3 text-sm text-destructive">
-          Error: {error}
-        </div>
+        <div className="px-4 py-3 text-sm text-destructive">Error: {error}</div>
       )}
 
       {/* iframe — sandbox attr must be set before src to avoid Chrome navigation-blocked errors */}
       <iframe
         ref={iframeRef}
         sandbox="allow-scripts allow-forms"
-        className={cn("w-full border-none bg-transparent rounded-b-lg overflow-hidden", isLoading ? "hidden" : "block")}
+        className={cn(
+          "w-full border-none bg-transparent rounded-b-lg overflow-hidden",
+          isLoading ? "hidden" : "block",
+        )}
         style={{ height: "600px" }}
       />
     </div>

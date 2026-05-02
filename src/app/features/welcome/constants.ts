@@ -8,14 +8,7 @@ Welcome to my personal page! I'm excited to share my work, projects, and insight
 This page is powered by an AI assistant, you can ask any questions :)
 `;
 
-import {
-  Briefcase,
-  Code,
-  GitMerge,
-  Mail,
-  SquareTerminal,
-  type LucideIcon,
-} from "lucide-react";
+import { Briefcase, Mail, SquareTerminal, type LucideIcon } from "lucide-react";
 import { AgentUIMessage } from "~/lib/message-schema";
 
 export interface SuggestionPrompt {

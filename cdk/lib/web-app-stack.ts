@@ -37,7 +37,6 @@ export class WebAppStack extends cdk.Stack {
 
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-    // Environment-specific configuration from envConfig
     const lambdaMemory = envConfig.lambdaMemory;
 
     const logGroup = new logs.LogGroup(this, "web-app-log-group", {
@@ -63,13 +62,10 @@ export class WebAppStack extends cdk.Stack {
       ],
     });
 
-    // Add lifecycle policy to clean up old versions
     assetsBucket.addLifecycleRule({
       noncurrentVersionExpiration: cdk.Duration.days(7),
     });
 
-    // CloudFront distribution for the S3 bucket with environment-specific caching
-    const htmlCacheTtl = cdk.Duration.minutes(envConfig.htmlCacheTtlMinutes);
     const assetCacheTtl = cdk.Duration.days(envConfig.assetsCacheTtlDays);
 
     // Use SubdomainStack's hosted zone and certificate if provided
@@ -84,7 +80,6 @@ export class WebAppStack extends cdk.Stack {
       envConfig.parentHostedZoneId &&
       envConfig.parentDelegationRoleArn
     ) {
-      // Create SubdomainStack with parent account delegation
       const subdomainStack = new SubdomainStack(
         this,
         `subdomain-stack-${envConfig.stage}`,
@@ -99,68 +94,14 @@ export class WebAppStack extends cdk.Stack {
       certificate = subdomainStack.certificate;
     }
 
-    const distribution = new cloudfront.Distribution(
-      this,
-      "remix-assets-distribution",
-      {
-        defaultBehavior: {
-          origin: origins.S3BucketOrigin.withOriginAccessControl(assetsBucket),
-          viewerProtocolPolicy:
-            cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          cachePolicy: new cloudfront.CachePolicy(this, "html-cache-policy", {
-            defaultTtl: htmlCacheTtl,
-            maxTtl: htmlCacheTtl,
-            minTtl: cdk.Duration.seconds(0),
-            queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
-            headerBehavior: cloudfront.CacheHeaderBehavior.none(),
-            cookieBehavior: cloudfront.CacheCookieBehavior.none(),
-            enableAcceptEncodingGzip: true,
-            enableAcceptEncodingBrotli: true,
-          }),
-        },
-        additionalBehaviors: {
-          "/assets/*": {
-            origin:
-              origins.S3BucketOrigin.withOriginAccessControl(assetsBucket),
-            viewerProtocolPolicy:
-              cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-            cachePolicy: new cloudfront.CachePolicy(
-              this,
-              "assets-cache-policy",
-              {
-                defaultTtl: assetCacheTtl,
-                maxTtl: assetCacheTtl,
-                minTtl: cdk.Duration.seconds(0),
-                queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
-                headerBehavior: cloudfront.CacheHeaderBehavior.none(),
-                cookieBehavior: cloudfront.CacheCookieBehavior.none(),
-                enableAcceptEncodingGzip: true,
-                enableAcceptEncodingBrotli: true,
-              },
-            ),
-          },
-        },
-        defaultRootObject: undefined,
-        errorResponses: [
-          {
-            httpStatus: 403,
-            responseHttpStatus: 404,
-            responsePagePath: "/404.html",
-            ttl: cdk.Duration.minutes(5),
-          },
-        ],
-      },
-    );
-
     // Lambda Web Adapter layer for proper HTTP streaming support
-    // See: https://github.com/awslabs/aws-lambda-web-adapter
     const webAdapterLayer = LayerVersion.fromLayerVersionArn(
       this,
       "lambda-web-adapter",
       `arn:aws:lambda:${this.region}:753240598075:layer:LambdaAdapterLayerX86:25`,
     );
 
-    // Lambda function for MCP server
+    // Lambda function for the web app
     const remixFunction = new lambda.Function(this, "mcp-server-function", {
       functionName: `ask-archil-io-${envConfig.stage}-web-app-function`,
       code: lambda.Code.fromAsset(
@@ -172,8 +113,6 @@ export class WebAppStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
       architecture: Architecture.X86_64,
       environment: {
-        ASSETS_BUCKET: assetsBucket.bucketName,
-        CLOUDFRONT_URL: `https://${distribution.distributionDomainName}`,
         ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "",
         TURNSTILE_SITE_KEY: process.env.TURNSTILE_SITE_KEY || "",
         TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY || "",
@@ -189,11 +128,107 @@ export class WebAppStack extends cdk.Stack {
       logGroup,
     });
 
-    // Grant Lambda function read access to S3 bucket
-    assetsBucket.grantRead(remixFunction);
-
     // Grant Lambda function read access to JWT secret
     secretsStack.jwtSecret.grantRead(remixFunction);
+
+    // HTTP API Gateway (v2) — no custom domain, CloudFront is the front door
+    const httpApi = new apigatewayv2.HttpApi(this, "remix-http-api", {
+      description: "HTTP API for Remix app",
+      createDefaultStage: false,
+    });
+
+    const lambdaIntegration = new integrations.HttpLambdaIntegration(
+      "remix-integration",
+      remixFunction,
+    );
+
+    httpApi.addRoutes({
+      path: "/{proxy+}",
+      methods: [apigatewayv2.HttpMethod.ANY],
+      integration: lambdaIntegration,
+    });
+
+    httpApi.addRoutes({
+      path: "/",
+      methods: [apigatewayv2.HttpMethod.ANY],
+      integration: lambdaIntegration,
+    });
+
+    new apigatewayv2.HttpStage(this, "remix-stage", {
+      httpApi,
+      stageName: "$default",
+      autoDeploy: true,
+    });
+
+    // Extract API Gateway hostname for CloudFront origin
+    const apiGatewayHostname = cdk.Fn.select(
+      2,
+      cdk.Fn.split("/", httpApi.apiEndpoint),
+    );
+
+    // Shared S3 origin with OAC for static assets
+    const s3Origin =
+      origins.S3BucketOrigin.withOriginAccessControl(assetsBucket);
+
+    // Cache policy for versioned/long-lived static assets
+    const assetsCachePolicy = new cloudfront.CachePolicy(
+      this,
+      "assets-cache-policy",
+      {
+        defaultTtl: assetCacheTtl,
+        maxTtl: assetCacheTtl,
+        minTtl: cdk.Duration.seconds(0),
+        queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
+        headerBehavior: cloudfront.CacheHeaderBehavior.none(),
+        cookieBehavior: cloudfront.CacheCookieBehavior.none(),
+        enableAcceptEncodingGzip: true,
+        enableAcceptEncodingBrotli: true,
+      },
+    );
+
+    // Static asset behavior (S3 origin, long-lived cache)
+    const staticBehavior: cloudfront.BehaviorOptions = {
+      origin: s3Origin,
+      viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+      cachePolicy: assetsCachePolicy,
+    };
+
+    // CloudFront is the public front door for ask.archil.io
+    // Default behavior → API Gateway (dynamic SSR + API routes)
+    // Static path behaviors → S3 (no Lambda involvement, no redirects)
+    const distribution = new cloudfront.Distribution(
+      this,
+      "remix-assets-distribution",
+      {
+        ...(envConfig.domainName && certificate
+          ? { domainNames: [envConfig.domainName], certificate }
+          : {}),
+        defaultBehavior: {
+          origin: new origins.HttpOrigin(apiGatewayHostname, {
+            protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
+          }),
+          viewerProtocolPolicy:
+            cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+          originRequestPolicy:
+            cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+        },
+        additionalBehaviors: {
+          "/assets/*": staticBehavior,
+          "/fonts/*": staticBehavior,
+          "/avatars/*": staticBehavior,
+          "/favicon.ico": staticBehavior,
+          "/robots.txt": staticBehavior,
+          "/sitemap.xml": staticBehavior,
+          "/theme-init.js": staticBehavior,
+          "/logo-dark.png": staticBehavior,
+          "/profile-pic-og.png": staticBehavior,
+        },
+        defaultRootObject: undefined,
+      },
+    );
 
     // Deploy static assets to S3 bucket
     const assetsDeployment = new s3deploy.BucketDeployment(
@@ -203,11 +238,11 @@ export class WebAppStack extends cdk.Stack {
         sources: [
           s3deploy.Source.asset(path.join(__dirname, "../../../public")),
           s3deploy.Source.asset(path.join(__dirname, "../../../dist/client"), {
-            exclude: ["**/*.html"], // HTML files are handled by Lambda
+            exclude: ["**/*.html"],
           }),
         ],
         destinationBucket: assetsBucket,
-        distribution, // Invalidate CloudFront cache on deployment
+        distribution,
         distributionPaths: ["/*"],
       },
     );
@@ -220,62 +255,13 @@ export class WebAppStack extends cdk.Stack {
       }),
     );
 
-    // HTTP API Gateway (v2) - no automatic /prod/ path
-    const httpApi = new apigatewayv2.HttpApi(this, "remix-http-api", {
-      description: "HTTP API for Remix app",
-      createDefaultStage: false,
-    });
-
-    // Lambda integration
-    const lambdaIntegration = new integrations.HttpLambdaIntegration(
-      "remix-integration",
-      remixFunction,
-    );
-
-    // Add route for all paths
-    httpApi.addRoutes({
-      path: "/{proxy+}",
-      methods: [apigatewayv2.HttpMethod.ANY],
-      integration: lambdaIntegration,
-    });
-
-    // Add root path route
-    httpApi.addRoutes({
-      path: "/",
-      methods: [apigatewayv2.HttpMethod.ANY],
-      integration: lambdaIntegration,
-    });
-
-    // Create stage without path prefix
-    const stage = new apigatewayv2.HttpStage(this, "remix-stage", {
-      httpApi,
-      stageName: "$default",
-      autoDeploy: true,
-    });
-
-    // Create API Gateway custom domain name if domain is configured
-    if (envConfig.domainName && certificate && hostedZone) {
-      const apiDomain = new apigatewayv2.DomainName(this, "api-domain", {
-        domainName: envConfig.domainName,
-        certificate: certificate,
-      });
-
-      // Map the custom domain to the HTTP API and stage
-      new apigatewayv2.ApiMapping(this, "api-mapping", {
-        api: httpApi,
-        domainName: apiDomain,
-        stage: stage,
-      });
-
-      // Create Route 53 A record for custom domain pointing to API Gateway
+    // Route53 A record pointing ask.archil.io to CloudFront
+    if (envConfig.domainName && hostedZone) {
       new route53.ARecord(this, "api-alias-record", {
         zone: hostedZone,
         recordName: envConfig.domainName,
         target: route53.RecordTarget.fromAlias(
-          new targets.ApiGatewayv2DomainProperties(
-            apiDomain.regionalDomainName,
-            apiDomain.regionalHostedZoneId,
-          ),
+          new targets.CloudFrontTarget(distribution),
         ),
       });
     }
@@ -292,7 +278,7 @@ export class WebAppStack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, "remix-cloudfront-url", {
-      description: "CloudFront distribution URL for static assets",
+      description: "CloudFront distribution URL",
       value: `https://${distribution.distributionDomainName}`,
     });
   }

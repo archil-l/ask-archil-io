@@ -221,7 +221,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Derive the allowed host origin server-side (same origin as this sandbox route).
   // Use X-Forwarded-Proto to get the real scheme — behind API Gateway / LWA the
   // internal request arrives as http:// even when the client used https://.
-  const proto = request.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "");
+  // X-Forwarded-Proto may be "https,https" when both CloudFront and API Gateway
+  // append it — take only the first value.
+  const proto = (request.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "")).split(",")[0].trim();
   const hostOrigin = `${proto}://${url.host}`;
 
   // Generate and return the HTML

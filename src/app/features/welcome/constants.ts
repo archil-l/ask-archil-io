@@ -8,7 +8,14 @@ Welcome to my personal page! I'm excited to share my work, projects, and insight
 This page is powered by an AI assistant, you can ask any questions :)
 `;
 
-import { Briefcase, Code, Mail, type LucideIcon } from "lucide-react";
+import {
+  Briefcase,
+  Code,
+  GitMerge,
+  Mail,
+  SquareTerminal,
+  type LucideIcon,
+} from "lucide-react";
 import { AgentUIMessage } from "~/lib/message-schema";
 
 export interface SuggestionPrompt {
@@ -24,14 +31,14 @@ export const PREDEFINED_PROMPTS: SuggestionPrompt[] = [
     iconColor: "text-blue-500",
   },
   {
-    text: "How is this page built?",
-    icon: Code,
-    iconColor: "text-green-500",
+    text: "What's under the hood of this site?",
+    icon: SquareTerminal,
+    iconColor: "text-orange-500",
   },
   {
-    text: "I want to contact Archil",
+    text: "How can I get in touch with Archil?",
     icon: Mail,
-    iconColor: "text-purple-500",
+    iconColor: "text-green-500",
   },
 ];
 

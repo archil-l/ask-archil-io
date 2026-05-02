@@ -15,7 +15,7 @@ export const WelcomeHeader = () => {
         <Button
           variant="ghost"
           size="icon"
-          className="transition-none"
+          className="transition-none bg-accent/40"
           onClick={handleClearConversation}
           aria-label="Reset conversation"
         >
@@ -24,7 +24,7 @@ export const WelcomeHeader = () => {
         <Button
           variant="ghost"
           size="icon"
-          className="transition-none"
+          className="transition-none bg-accent/40"
           onClick={toggleTheme}
           aria-label={
             theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
@@ -39,7 +39,7 @@ export const WelcomeHeader = () => {
         <Button
           variant="ghost"
           size="icon"
-          className="transition-none"
+          className="transition-none bg-accent/40"
           onClick={() => (window.location.href = "mailto:archil-l@outlook.com")}
           aria-label="Contact"
         >

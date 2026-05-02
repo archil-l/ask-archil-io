@@ -19,7 +19,7 @@ export function IconSuggestion({
     <Suggestion
       suggestion={text}
       onClick={onClick}
-      className="font-normal bg-background dark:bg-background"
+      className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background"
     >
       <div className="flex items-center gap-2">
         <Icon className={cn("h-4 w-4", iconColor)} />

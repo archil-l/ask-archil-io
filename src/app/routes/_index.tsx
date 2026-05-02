@@ -45,7 +45,7 @@ const JSON_LD = JSON.stringify({
 });
 
 export const meta: MetaFunction = () => [
-  { title: "Archil Lelashvili – Software Engineer & AI Builder" },
+  { title: "Archil Lelashvili – Software Engineer" },
   { name: "description", content: DESCRIPTION },
   { name: "robots", content: "index, follow" },
   { tagName: "link", rel: "canonical", href: "https://ask.archil.io" },
@@ -53,14 +53,14 @@ export const meta: MetaFunction = () => [
   { property: "og:url", content: "https://ask.archil.io" },
   {
     property: "og:title",
-    content: "Archil Lelashvili – Software Engineer & AI Builder",
+    content: "Archil Lelashvili – Software Engineer",
   },
   { property: "og:description", content: DESCRIPTION },
   { property: "og:image", content: "https://ask.archil.io/profile-pic-og.png" },
   { name: "twitter:card", content: "summary_large_image" },
   {
     name: "twitter:title",
-    content: "Archil Lelashvili – Software Engineer & AI Builder",
+    content: "Archil Lelashvili – Software Engineer",
   },
   { name: "twitter:description", content: DESCRIPTION },
   {
@@ -117,8 +117,8 @@ export default function Index() {
 
         <h2>Education</h2>
         <p>
-          MS in Information Systems – Northeastern University (GPA 3.71) ·
-          BSc in Business Informatics – FH Technikum Wien (GPA 3.7)
+          MS in Information Systems – Northeastern University (GPA 3.71) · BSc
+          in Business Informatics – FH Technikum Wien (GPA 3.7)
         </p>
 
         <h2>Contact</h2>

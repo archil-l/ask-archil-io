@@ -328,6 +328,7 @@ async function runAgenticLoop(
   ) => Promise<unknown>,
   toolMetaMap: Record<string, McpToolMeta>,
   responseStream: ResponseStream,
+  timezone?: string,
 ): Promise<void> {
   let currentMessages = [...messages];
 
@@ -360,7 +361,7 @@ async function runAgenticLoop(
 
     const stream = anthropic.messages.stream({
       model: MODEL,
-      system: buildSystemPrompt(),
+      system: buildSystemPrompt(timezone),
       messages: currentMessages,
       tools: tools.length > 0 ? tools : undefined,
       max_tokens: 8192,
@@ -546,13 +547,14 @@ export const handler = awslambda.streamifyResponse(
 
       // Parse request body
       const body = event.body ? JSON.parse(event.body) : {};
-      const { messages: inputMessages, toolResults } = body as {
+      const { messages: inputMessages, toolResults, timezone } = body as {
         messages?: AgentUIMessage[];
         toolResults?: Array<{
           toolCallId: string;
           toolName: string;
           output: unknown;
         }>;
+        timezone?: string;
       };
 
       if (!inputMessages || !Array.isArray(inputMessages)) {
@@ -623,6 +625,7 @@ export const handler = awslambda.streamifyResponse(
         callTool,
         Object.fromEntries(toolMetaMap),
         responseStream,
+        timezone,
       );
 
       await close();

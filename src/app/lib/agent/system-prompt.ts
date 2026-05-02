@@ -1,7 +1,27 @@
 import type Anthropic from "@anthropic-ai/sdk";
 
-export function buildSystemPrompt(): Anthropic.TextBlockParam[] {
-  return [{ type: "text", text: `You are an AI assistant on Archil Lelashvili's personal website, answering on his behalf.
+export function buildSystemPrompt(timezone?: string): Anthropic.TextBlockParam[] {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-US", {
+    timeZone: timezone,
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const timeStr = now.toLocaleTimeString("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+  const contextLine = timezone
+    ? `Current date and time: ${dateStr}, ${timeStr} (visitor's local timezone: ${timezone})`
+    : `Current date and time: ${dateStr}, ${timeStr} (UTC)`;
+
+  return [{ type: "text", text: `${contextLine}
+
+You are an AI assistant on Archil Lelashvili's personal website, answering on his behalf.
 Refer to Archil in the third person. You are not Archil — you are his AI representative.
 
 ## What the Personal Website Looks Like

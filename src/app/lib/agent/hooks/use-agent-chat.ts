@@ -170,10 +170,12 @@ export function useAgentChat(options: UseAgentChatOptions): AgentChatResult {
       }
 
       const strippedNew = stripLargeFieldsForTransport([newMessage])[0];
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const timezoneJson = `,"timezone":${JSON.stringify(timezone)}`;
       const bodyJson =
         stableMessages.length === 0
-          ? JSON.stringify({ messages: [strippedNew], toolResults })
-          : `{"messages":[${stableJson.slice(1, -1)},${JSON.stringify(strippedNew)}]${toolResults ? `,"toolResults":${JSON.stringify(toolResults)}` : ""}}`;
+          ? JSON.stringify({ messages: [strippedNew], toolResults, timezone })
+          : `{"messages":[${stableJson.slice(1, -1)},${JSON.stringify(strippedNew)}]${toolResults ? `,"toolResults":${JSON.stringify(toolResults)}` : ""}${timezoneJson}}`;
 
       let response: Response;
       try {

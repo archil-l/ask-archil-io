@@ -28,6 +28,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
         <script src="/theme-init.js" />
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-9HXTF6E3MF" />
+        <script dangerouslySetInnerHTML={{ __html: `window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config', 'G-9HXTF6E3MF');` }} />
       </head>
       <body>
         {children}

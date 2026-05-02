@@ -1,10 +1,19 @@
 "use client";
 
 import type { AgentUIMessage } from "~/lib/message-schema";
+import type { LinkSafetyModalProps } from "streamdown";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
 
 import { Button } from "~/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "~/components/ui/button-group";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -16,7 +25,7 @@ import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, ExternalLinkIcon } from "lucide-react";
 import {
   createContext,
   memo,
@@ -27,6 +36,40 @@ import {
   useState,
 } from "react";
 import { Streamdown } from "streamdown";
+
+function ExternalLinkModal({ isOpen, onClose, onConfirm, url }: LinkSafetyModalProps) {
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-sm" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ExternalLinkIcon className="size-4 shrink-0" />
+            Open external link?
+          </DialogTitle>
+          <DialogDescription>
+            You&apos;re about to visit an external website.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="break-all rounded-md bg-muted px-3 py-2 font-mono text-xs">
+          {url}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={() => { onConfirm(); onClose(); }}>
+            Open link
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const linkSafety = {
+  enabled: true,
+  renderModal: (props: LinkSafetyModalProps) => <ExternalLinkModal {...props} />,
+};
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: AgentUIMessage["role"];
@@ -332,6 +375,7 @@ export const MessageResponse = memo(
         className,
       )}
       plugins={streamdownPlugins}
+      linkSafety={linkSafety}
       {...props}
     />
   ),

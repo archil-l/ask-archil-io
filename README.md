@@ -30,8 +30,6 @@ Three Lambda functions + CloudFront:
 4. MCP tools return a `resourceUri`; browser fetches the HTML bundle via MCP Proxy → sandboxed iframe via `AppBridge`
 5. Conversation persisted in `localStorage`
 
----
-
 ## CDK Stacks (6, deployed in order)
 
 | Stack           | Purpose                                                       |
@@ -42,8 +40,6 @@ Three Lambda functions + CloudFront:
 | LlmStreamStack  | Streaming Lambda + Function URL (RESPONSE_STREAM mode)        |
 | McpProxyStack   | MCP Proxy Lambda + Function URL                               |
 | WebAppStack     | CloudFront, S3, Web Lambda, API Gateway v2, Route 53 A record |
-
----
 
 ## Key Source Paths
 
@@ -58,8 +54,6 @@ Three Lambda functions + CloudFront:
 | MCP client           | `src/app/server/mcp/`                           |
 | CDK entry            | `cdk/app.ts`                                    |
 
----
-
 ## Commands
 
 ```bash
@@ -69,8 +63,6 @@ npm run release          # Clean + build + bundle all Lambdas
 npm run typecheck        # TypeScript type check
 npm run cdk:build        # Compile CDK TypeScript
 ```
-
----
 
 ## Tech Stack
 
@@ -84,5 +76,3 @@ npm run cdk:build        # Compile CDK TypeScript
 | CAPTCHA        | Cloudflare Turnstile                                       |
 | CI/CD          | GitHub Actions + AWS OIDC (no stored credentials)          |
 | MCP            | `@modelcontextprotocol/sdk` — tools & iframe app resources |
-
----

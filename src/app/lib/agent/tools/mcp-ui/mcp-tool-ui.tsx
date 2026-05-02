@@ -118,13 +118,16 @@ async function fetchUiResource(
 /**
  * Loads the sandbox proxy iframe and returns a promise that resolves
  * when the sandbox is ready to receive HTML content.
+ *
+ * Uses srcdoc instead of src — Chrome blocks same-origin URLs from loading
+ * into null-origin sandboxed iframes (allow-scripts without allow-same-origin).
  */
-function loadSandboxProxy(
+async function loadSandboxProxy(
   iframe: HTMLIFrameElement,
   sandboxUrl: string,
 ): Promise<boolean> {
   // Prevent reload if already loaded
-  if (iframe.src) return Promise.resolve(false);
+  if (iframe.srcdoc) return false;
 
   const readyNotification: McpUiSandboxProxyReadyNotification["method"] =
     "ui/notifications/sandbox-proxy-ready";
@@ -143,9 +146,11 @@ function loadSandboxProxy(
     window.addEventListener("message", listener);
   });
 
-  // Set src AFTER setting up the listener to avoid race condition
   log.info("Loading sandbox proxy...");
-  iframe.src = sandboxUrl;
+  const response = await fetch(sandboxUrl);
+  const html = await response.text();
+  // Set srcdoc AFTER the listener is registered to avoid race condition
+  iframe.srcdoc = html;
 
   return readyPromise;
 }
@@ -194,6 +199,7 @@ export function McpToolUI({ tool, mcpProxyEndpoint }: McpToolUIProps) {
   const { theme } = useThemeContext();
 
   const sandboxUrl = new URL("/sandbox", window.location.origin);
+  sandboxUrl.searchParams.set("origin", window.location.origin); // used server-side to derive EXPECTED_HOST_ORIGIN
 
   // Propagate theme changes to the MCP app after initialization
   useEffect(() => {

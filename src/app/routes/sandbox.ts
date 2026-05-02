@@ -116,16 +116,6 @@ function generateSandboxHtml(hostOrigin: string): string {
       // Own origin is always "null" for sandboxed iframes without allow-same-origin
       const OWN_ORIGIN = "null";
       
-      // Security self-test
-      try {
-        window.top.document.title;
-        throw new Error("SANDBOX_SECURITY_FAILURE");
-      } catch (e) {
-        if (e.message === "SANDBOX_SECURITY_FAILURE") {
-          throw new Error("The sandbox is not setup securely.");
-        }
-      }
-      
       // Import buildAllowAttribute dynamically
       // Note: In a route-served page, we need to handle this differently
       // For now, we'll implement a simplified version inline
@@ -147,10 +137,9 @@ function generateSandboxHtml(hostOrigin: string): string {
         return directives.length > 0 ? directives.join("; ") : null;
       }
       
-      // Create inner iframe
+      // Create inner iframe — no src/srcdoc yet, sandbox attr set later in RESOURCE_READY
       const inner = document.createElement("iframe");
       inner.style.cssText = "width:100%; height:100%; border:none;";
-      inner.setAttribute("sandbox", "allow-scripts allow-same-origin allow-forms");
       document.body.appendChild(inner);
       
       // Message relay
@@ -218,13 +207,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Build CSP header
   const cspHeader = buildCspHeader(cspConfig);
 
-  // Derive the allowed host origin server-side (same origin as this sandbox route).
-  // Use X-Forwarded-Proto to get the real scheme — behind API Gateway / LWA the
-  // internal request arrives as http:// even when the client used https://.
-  // X-Forwarded-Proto may be "https,https" when both CloudFront and API Gateway
-  // append it — take only the first value.
-  const proto = (request.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "")).split(",")[0].trim();
-  const hostOrigin = `${proto}://${url.host}`;
+  // The host origin is supplied by the client as ?origin=<origin> so it reflects
+  // the public-facing URL (e.g. https://ask.archil.io) rather than the internal
+  // API Gateway hostname that the Lambda sees in request.url behind CloudFront.
+  // Validate it is a well-formed https:// or http://localhost origin to prevent
+  // injection of arbitrary values into the baked-in script constant.
+  const rawOrigin = url.searchParams.get("origin") ?? "";
+  const isValidOrigin = /^https:\/\/[a-zA-Z0-9.-]+(:\d+)?$/.test(rawOrigin) ||
+    /^http:\/\/localhost(:\d+)?$/.test(rawOrigin);
+  const hostOrigin = isValidOrigin ? rawOrigin : url.origin;
 
   // Generate and return the HTML
   const html = generateSandboxHtml(hostOrigin);

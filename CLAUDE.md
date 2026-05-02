@@ -26,12 +26,14 @@ AI-powered personal website with two AWS Lambda functions sharing one codebase:
 - Redirects `/assets/*` to CloudFront
 
 **Streaming Lambda** — LLM streaming only
-- Validates incoming JWT, then streams Claude Haiku responses via SSE
-- Uses Vercel AI SDK (`ai`) with `x-vercel-ai-ui-message-stream: v1` protocol
-- Executes up to 5 tool-use steps (`stopWhen: stepCountIs(5)`)
+- Validates incoming JWT, then streams Claude Haiku responses via custom SSE protocol
+- Uses `@anthropic-ai/sdk` `messages.stream()` directly (not Vercel AI SDK)
+- Executes up to 5 tool-use steps
 - Client-side tools (no `execute` on server): `toggleTheme`, `checkTheme`, `showResume`
 - MCP tools come from `mcp-ask-archil` server (`MCP_SERVER_URL`): `get-resume`, `get-architecture`, plus others; degrades gracefully if unavailable
-- MCP Apps (`get-resume`, `get-architecture`) render as sandboxed iframes via AppBridge in `McpToolUI`
+- MCP Apps (`get-resume`, `get-architecture`) return a `resourceUri`; browser fetches HTML bundle via MCP Proxy Lambda → sandboxed iframe via `AppBridge` in `McpToolUI`
+
+**MCP Proxy Lambda** — serves MCP UI resources (iframe HTML bundles) to the browser
 
 **Client Flow:**
 1. Page loads → fetches JWT from `/api/jwt-token` (auto-refreshes when <5 min remain)
@@ -48,7 +50,7 @@ AI-powered personal website with two AWS Lambda functions sharing one codebase:
 - `src/app/server/mcp/` — MCP client
 - `src/app/routes/api/jwt-token.ts` — JWT endpoint
 - `deployment/` — Lambda entry shims
-- `cdk/` — AWS CDK infrastructure (5 stacks: Secrets, OIDC, Subdomain, LLMStream, WebApp)
+- `cdk/` — AWS CDK infrastructure (6 stacks: Secrets, OIDC, Subdomain, LLMStream, McpProxy, WebApp)
 
 **Build output:**
 - `dist/lambda-pkg/web-app-handler.js` — web app Lambda bundle

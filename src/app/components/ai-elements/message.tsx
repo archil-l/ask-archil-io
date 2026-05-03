@@ -2,7 +2,7 @@
 
 import type { AgentUIMessage } from "~/lib/message-schema";
 import type { LinkSafetyModalProps } from "streamdown";
-import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
+import type { AnchorHTMLAttributes, ComponentProps, HTMLAttributes, ReactElement } from "react";
 
 import { Button } from "~/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "~/components/ui/button-group";
@@ -70,6 +70,25 @@ const linkSafety = {
   enabled: true,
   renderModal: (props: LinkSafetyModalProps) => <ExternalLinkModal {...props} />,
 };
+
+function LinkWithTooltip({ href, children, ...props }: AnchorHTMLAttributes<HTMLAnchorElement>) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <a href={href} {...props}>{children}</a>
+        </TooltipTrigger>
+        {href && (
+          <TooltipContent side="bottom" className="max-w-xs break-all font-mono text-[11px]">
+            {href}
+          </TooltipContent>
+        )}
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+const streamdownComponents = { a: LinkWithTooltip };
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: AgentUIMessage["role"];
@@ -376,6 +395,7 @@ export const MessageResponse = memo(
       )}
       plugins={streamdownPlugins}
       linkSafety={linkSafety}
+      components={streamdownComponents}
       {...props}
     />
   ),

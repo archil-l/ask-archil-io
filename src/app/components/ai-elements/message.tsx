@@ -88,7 +88,18 @@ function LinkWithTooltip({ href, children, ...props }: AnchorHTMLAttributes<HTML
   );
 }
 
-const streamdownComponents = { a: LinkWithTooltip };
+function InlineImage({ src, alt, ...props }: HTMLAttributes<HTMLImageElement> & { src?: string; alt?: string }) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="inline size-4 align-text-bottom"
+      {...props}
+    />
+  );
+}
+
+const streamdownComponents = { a: LinkWithTooltip, img: InlineImage };
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: AgentUIMessage["role"];

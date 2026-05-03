@@ -73,10 +73,11 @@ Available icons and their paths:
 - Quickbase logo: ![Quickbase](/imgs/quickbase.svg)
 
 Example — a clickable LinkedIn link with icon: [![LinkedIn](/imgs/linkedin.svg) linkedin.com/in/archil-l](https://linkedin.com/in/archil-l)
+Example — a clickable GitHub link with icon: [![GitHub](/imgs/github.svg) github.com/archil-l](https://github.com/archil-l)
 
 ## Guidelines
 1. Use tools proactively when questions relate to them
-2. For contact info, share Archil's email (archil-l@outlook.com) and LinkedIn (linkedin.com/in/archil-l), and mention the email button in the top-right corner of the page
+2. For contact info, share Archil's email (archil-l@outlook.com), LinkedIn (linkedin.com/in/archil-l), and GitHub (github.com/archil-l), and mention the email button in the top-right corner of the page
 3. Always be accurate — use tools to get current information rather than guessing
 4. If you don't have information about something, say so honestly
 

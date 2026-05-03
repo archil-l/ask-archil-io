@@ -2,6 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { PromptInput } from "~/components/ai-elements/prompt-input";
 import { PromptInputTextarea } from "~/components/ai-elements/prompt-input";
 import { PromptInputSubmit } from "~/components/ai-elements/prompt-input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 import { TurnstileWidget } from "~/components/ui/turnstile";
 import type { TurnstileInstance } from "@marsidev/react-turnstile";
 import { useConversationContext } from "~/contexts/conversation-context";
@@ -79,13 +85,21 @@ export function InputArea() {
           className="pr-12 bg-background dark:bg-background transition duration-300"
           disabled={!captchaVerified && !!siteKey}
         />
-        <PromptInputSubmit
-          disabled={
-            !input.trim() || isLoading || (!captchaVerified && !!siteKey)
-          }
-          status={isLoading ? "submitted" : undefined}
-          className="absolute bottom-1 right-1"
-        />
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="absolute bottom-1 right-1">
+                <PromptInputSubmit
+                  disabled={
+                    !input.trim() || isLoading || (!captchaVerified && !!siteKey)
+                  }
+                  status={isLoading ? "submitted" : undefined}
+                />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top">Send message</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </PromptInput>
 
       {!captchaVerified && siteKey && (

@@ -225,6 +225,7 @@ export class WebAppStack extends cdk.Stack {
           "/theme-init.js": staticBehavior,
           "/logo-dark.png": staticBehavior,
           "/profile-pic-og.png": staticBehavior,
+          "/imgs/*": staticBehavior,
         },
         defaultRootObject: undefined,
       },

@@ -2,7 +2,12 @@
 
 import type { AgentUIMessage } from "~/lib/message-schema";
 import type { LinkSafetyModalProps } from "streamdown";
-import type { AnchorHTMLAttributes, ComponentProps, HTMLAttributes, ReactElement } from "react";
+import type {
+  AnchorHTMLAttributes,
+  ComponentProps,
+  HTMLAttributes,
+  ReactElement,
+} from "react";
 
 import { Button } from "~/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "~/components/ui/button-group";
@@ -25,7 +30,11 @@ import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
-import { ChevronLeftIcon, ChevronRightIcon, ExternalLinkIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ExternalLinkIcon,
+} from "lucide-react";
 import {
   createContext,
   memo,
@@ -37,7 +46,12 @@ import {
 } from "react";
 import { Streamdown } from "streamdown";
 
-function ExternalLinkModal({ isOpen, onClose, onConfirm, url }: LinkSafetyModalProps) {
+function ExternalLinkModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  url,
+}: LinkSafetyModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-sm" showCloseButton={false}>
@@ -57,7 +71,12 @@ function ExternalLinkModal({ isOpen, onClose, onConfirm, url }: LinkSafetyModalP
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={() => { onConfirm(); onClose(); }}>
+          <Button
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+          >
             Open link
           </Button>
         </DialogFooter>
@@ -68,18 +87,29 @@ function ExternalLinkModal({ isOpen, onClose, onConfirm, url }: LinkSafetyModalP
 
 const linkSafety = {
   enabled: true,
-  renderModal: (props: LinkSafetyModalProps) => <ExternalLinkModal {...props} />,
+  renderModal: (props: LinkSafetyModalProps) => (
+    <ExternalLinkModal {...props} />
+  ),
 };
 
-function LinkWithTooltip({ href, children, ...props }: AnchorHTMLAttributes<HTMLAnchorElement>) {
+function LinkWithTooltip({
+  href,
+  children,
+  ...props
+}: AnchorHTMLAttributes<HTMLAnchorElement>) {
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <a href={href} {...props}>{children}</a>
+          <a href={href} {...props}>
+            {children}
+          </a>
         </TooltipTrigger>
         {href && (
-          <TooltipContent side="bottom" className="max-w-xs break-all font-mono text-[11px]">
+          <TooltipContent
+            side="bottom"
+            className="max-w-xs break-all font-mono text-[11px]"
+          >
             {href}
           </TooltipContent>
         )}
@@ -88,13 +118,13 @@ function LinkWithTooltip({ href, children, ...props }: AnchorHTMLAttributes<HTML
   );
 }
 
-function InlineImage({ src, alt, ...props }: HTMLAttributes<HTMLImageElement> & { src?: string; alt?: string }) {
+function InlineImage({ src, alt }: { src?: string; alt?: string }) {
   return (
-    <img
-      src={src}
-      alt={alt}
-      className="inline size-4 align-text-bottom"
-      {...props}
+    <span
+      role="img"
+      aria-label={alt}
+      className="inline-block size-[1.2em] align-[-0.15em] bg-contain bg-center bg-no-repeat mb-px mx-1"
+      style={{ backgroundImage: src ? `url(${src})` : undefined }}
     />
   );
 }

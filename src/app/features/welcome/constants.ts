@@ -8,7 +8,7 @@ Welcome to my personal page! I'm excited to share my work, projects, and insight
 This page is powered by an AI assistant, you can ask any questions :)
 `;
 
-import { Briefcase, Mail, SquareTerminal, type LucideIcon } from "lucide-react";
+import { Briefcase, FileText, Mail, SquareTerminal, type LucideIcon } from "lucide-react";
 import { AgentUIMessage } from "~/lib/message-schema";
 
 export interface SuggestionPrompt {
@@ -32,6 +32,11 @@ export const PREDEFINED_PROMPTS: SuggestionPrompt[] = [
     text: "How can I get in touch with Archil?",
     icon: Mail,
     iconColor: "text-green-500",
+  },
+  {
+    text: "Show me Archil's resume",
+    icon: FileText,
+    iconColor: "text-purple-500",
   },
 ];
 

@@ -3,6 +3,7 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Runtime, Architecture } from "aws-cdk-lib/aws-lambda";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as logs from "aws-cdk-lib/aws-logs";
+import * as s3 from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -35,6 +36,13 @@ export class LLMStreamStack extends cdk.Stack {
       `mcp-server-client-access-role-arn-${envConfig.stage}`,
     );
 
+    const conversationsBucket = new s3.Bucket(this, "conversations-bucket", {
+      bucketName: `ask-archil-io-${envConfig.stage}-conversations`,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+    });
+
     const logGroup = new logs.LogGroup(this, "llm-stream-log-group", {
       logGroupName: `/aws/lambda/ask-archil-io-${envConfig.stage}-llm-stream-function`,
       retention: envConfig.logRetention,
@@ -60,6 +68,7 @@ export class LLMStreamStack extends cdk.Stack {
         MCP_SERVER_URL: cdk.Fn.join("", [mcpServerFunctionUrl, "mcp"]),
         // Client access role for assuming temporary credentials
         CLIENT_ACCESS_ROLE_ARN: clientAccessRoleArn,
+        CONVERSATIONS_BUCKET_NAME: conversationsBucket.bucketName,
       },
       logGroup,
     });
@@ -84,6 +93,9 @@ export class LLMStreamStack extends cdk.Stack {
 
     // Grant Lambda function read access to JWT secret
     secretsStack.jwtSecret.grantRead(streamingFunction);
+
+    // Grant Lambda function write access to conversations bucket
+    conversationsBucket.grantPut(streamingFunction);
 
     // Add Function URL with streaming enabled
     this.functionUrl = streamingFunction.addFunctionUrl({

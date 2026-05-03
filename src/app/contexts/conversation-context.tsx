@@ -11,6 +11,7 @@ interface ConversationProviderProps {
   isLoaded: boolean;
   streamingEndpoint: string;
   mcpProxyEndpoint: string | null;
+  conversationId?: string;
 }
 
 interface ConversationContextType {
@@ -32,6 +33,7 @@ export function ConversationProvider({
   isLoaded,
   streamingEndpoint,
   mcpProxyEndpoint,
+  conversationId,
 }: ConversationProviderProps) {
   const { token, isTokenLoading } = useToken();
 
@@ -47,6 +49,7 @@ export function ConversationProvider({
       streamingEndpoint={streamingEndpoint}
       mcpProxyEndpoint={mcpProxyEndpoint}
       token={token}
+      conversationId={conversationId}
     >
       {children}
     </ConversationProviderInner>
@@ -60,6 +63,7 @@ interface ConversationProviderInnerProps {
   streamingEndpoint: string;
   mcpProxyEndpoint: string | null;
   token: string;
+  conversationId?: string;
 }
 
 function ConversationProviderInner({
@@ -69,6 +73,7 @@ function ConversationProviderInner({
   streamingEndpoint,
   mcpProxyEndpoint,
   token,
+  conversationId,
 }: ConversationProviderInnerProps) {
   // Get client-side tool handlers
   const toolHandlers = useClientToolHandlers();
@@ -78,6 +83,7 @@ function ConversationProviderInner({
     streamingEndpoint,
     token,
     toolHandlers,
+    conversationId,
   });
 
   // Save conversation to localStorage whenever messages change (after initial load)

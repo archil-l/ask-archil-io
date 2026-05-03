@@ -14,6 +14,7 @@ export interface UseAgentChatOptions {
   streamingEndpoint: string;
   token: string;
   toolHandlers: ClientToolHandlers;
+  conversationId?: string;
 }
 
 export type ChatStatus = "idle" | "submitted" | "streaming" | "error";
@@ -127,7 +128,7 @@ function updateLastAssistant(
 }
 
 export function useAgentChat(options: UseAgentChatOptions): AgentChatResult {
-  const { initialMessages, streamingEndpoint, token, toolHandlers } = options;
+  const { initialMessages, streamingEndpoint, token, toolHandlers, conversationId } = options;
 
   const [messages, setMessages] = useState<AgentUIMessage[]>(
     initialMessages ?? [],
@@ -172,10 +173,11 @@ export function useAgentChat(options: UseAgentChatOptions): AgentChatResult {
       const strippedNew = stripLargeFieldsForTransport([newMessage])[0];
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const timezoneJson = `,"timezone":${JSON.stringify(timezone)}`;
+      const conversationIdJson = conversationId ? `,"conversationId":${JSON.stringify(conversationId)}` : "";
       const bodyJson =
         stableMessages.length === 0
-          ? JSON.stringify({ messages: [strippedNew], toolResults, timezone })
-          : `{"messages":[${stableJson.slice(1, -1)},${JSON.stringify(strippedNew)}]${toolResults ? `,"toolResults":${JSON.stringify(toolResults)}` : ""}${timezoneJson}}`;
+          ? JSON.stringify({ messages: [strippedNew], toolResults, timezone, conversationId })
+          : `{"messages":[${stableJson.slice(1, -1)},${JSON.stringify(strippedNew)}]${toolResults ? `,"toolResults":${JSON.stringify(toolResults)}` : ""}${timezoneJson}${conversationIdJson}}`;
 
       let response: Response;
       try {
@@ -428,7 +430,7 @@ export function useAgentChat(options: UseAgentChatOptions): AgentChatResult {
 
       setStatus("idle");
     },
-    [streamingEndpoint, token, toolHandlers],
+    [streamingEndpoint, token, toolHandlers, conversationId],
   );
 
   const sendMessage = useCallback(

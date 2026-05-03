@@ -3,6 +3,7 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { verifyAuthHeader } from "../auth/jwt-verifier.js";
 import { AgentUIMessage, DynamicToolUIPart } from "~/lib/message-schema";
 import { buildSystemPrompt } from "~/lib/agent/system-prompt.js";
@@ -16,10 +17,31 @@ const MAX_STEPS = 5;
 // Client-side tools that must be executed on the browser
 const CLIENT_SIDE_TOOLS = new Set(Object.keys(allTools));
 
-// Secrets Manager client for JWT secret retrieval
 const secretsClient = new SecretsManagerClient({
   region: process.env.AWS_REGION || "us-east-1",
 });
+
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION || "us-east-1",
+});
+
+async function saveConversationToS3(
+  conversationId: string,
+  messages: Anthropic.MessageParam[],
+): Promise<void> {
+  const bucketName = process.env.CONVERSATIONS_BUCKET_NAME;
+  if (!bucketName) return;
+
+  const now = new Date().toISOString();
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: bucketName,
+      Key: `conversations/${conversationId}.json`,
+      Body: JSON.stringify({ conversationId, lastModified: now, messages }),
+      ContentType: "application/json",
+    }),
+  );
+}
 
 async function fetchJWTSecret(): Promise<string> {
   try {
@@ -329,7 +351,7 @@ async function runAgenticLoop(
   toolMetaMap: Record<string, McpToolMeta>,
   responseStream: ResponseStream,
   timezone?: string,
-): Promise<void> {
+): Promise<Anthropic.MessageParam[]> {
   let currentMessages = [...messages];
 
   // Emit tool metadata first so the client knows which tools have UI resources
@@ -408,7 +430,7 @@ async function runAgenticLoop(
         type: "done",
         finishReason: finalMessage.stop_reason ?? "end_turn",
       });
-      return;
+      return currentMessages;
     }
 
     // Collect tool use blocks
@@ -482,7 +504,7 @@ async function runAgenticLoop(
         type: "done",
         finishReason: "client-tools-needed",
       });
-      return;
+      return currentMessages;
     }
 
     // Continue with server tool results
@@ -493,6 +515,7 @@ async function runAgenticLoop(
 
   // Max steps reached
   writeSSE(responseStream, { type: "done", finishReason: "max-steps" });
+  return currentMessages;
 }
 
 export const handler = awslambda.streamifyResponse(
@@ -547,7 +570,7 @@ export const handler = awslambda.streamifyResponse(
 
       // Parse request body
       const body = event.body ? JSON.parse(event.body) : {};
-      const { messages: inputMessages, toolResults, timezone } = body as {
+      const { messages: inputMessages, toolResults, timezone, conversationId } = body as {
         messages?: AgentUIMessage[];
         toolResults?: Array<{
           toolCallId: string;
@@ -555,6 +578,7 @@ export const handler = awslambda.streamifyResponse(
           output: unknown;
         }>;
         timezone?: string;
+        conversationId?: string;
       };
 
       if (!inputMessages || !Array.isArray(inputMessages)) {
@@ -618,7 +642,7 @@ export const handler = awslambda.streamifyResponse(
       );
 
       // Run the agentic loop
-      await runAgenticLoop(
+      const finalMessages = await runAgenticLoop(
         anthropic,
         anthropicMessages,
         combinedTools,
@@ -630,6 +654,13 @@ export const handler = awslambda.streamifyResponse(
 
       await close();
       responseStream.end();
+
+      // Best-effort: save conversation history to S3 (do not await, never throws)
+      if (conversationId) {
+        saveConversationToS3(conversationId, finalMessages).catch((err) => {
+          console.error("Failed to save conversation to S3:", err);
+        });
+      }
     } catch (error) {
       console.error("Streaming error:", error);
       const errorMessage =

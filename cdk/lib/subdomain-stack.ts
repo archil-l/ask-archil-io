@@ -4,6 +4,7 @@ import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as logs from "aws-cdk-lib/aws-logs";
 import { Construct } from "constructs";
 import * as path from "path";
 
@@ -96,6 +97,12 @@ export class SubdomainStack extends cdk.Stack {
   ): cdk.custom_resources.AwsCustomResource {
     // Lambda function to update NS records in parent account
     // Uses NodejsFunction for automatic TypeScript compilation with esbuild
+    const nsUpdateLogGroup = new logs.LogGroup(this, "ns-update-log-group", {
+      logGroupName: `/aws/lambda/ask-archil-io-ns-update-lambda`,
+      retention: logs.RetentionDays.ONE_MONTH,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
     const nsUpdateLambda = new lambdaNodejs.NodejsFunction(
       this,
       "ns-update-lambda",
@@ -116,6 +123,7 @@ export class SubdomainStack extends cdk.Stack {
         },
         timeout: cdk.Duration.minutes(5),
         memorySize: 256,
+        logGroup: nsUpdateLogGroup,
       },
     );
 

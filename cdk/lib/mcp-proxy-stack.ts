@@ -18,6 +18,7 @@ interface McpProxyStackProps extends cdk.StackProps {
   envConfig: EnvironmentConfig;
   secretsStack: SecretsStack;
   subdomainStack?: SubdomainStack;
+  webAclArn?: string;
 }
 
 export class McpProxyStack extends cdk.Stack {
@@ -28,7 +29,7 @@ export class McpProxyStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: McpProxyStackProps) {
     super(scope, id, props);
 
-    const { envConfig, secretsStack, subdomainStack } = props;
+    const { envConfig, secretsStack, subdomainStack, webAclArn } = props;
 
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -116,6 +117,7 @@ export class McpProxyStack extends cdk.Stack {
         this,
         "mcp-proxy-distribution",
         {
+          ...(webAclArn ? { webAclId: webAclArn } : {}),
           defaultBehavior: {
             // Lambda Function URLs must be fronted via HttpOrigin
             origin: new origins.HttpOrigin(functionUrlHostname, {

@@ -79,6 +79,15 @@ const llmStreamStack = new LLMStreamStack(
 // Ensure secrets stack is created before LLM stream stack
 llmStreamStack.addDependency(secretsStack);
 
+// WAF Stack — must be in us-east-1 for CloudFront; creates WebACL with managed rules + rate limit
+const wafStack = new WafStack(app, `ask-archil-io-waf-${envConfig.stage}`, {
+  envConfig,
+  env: {
+    account: envConfig.accountId,
+    region: "us-east-1",
+  },
+});
+
 // MCP Proxy Stack - dedicated Lambda for client-side MCP access
 // Uses the subdomain stack's wildcard cert to serve at proxy.<domainName>
 const mcpProxyStack = new McpProxyStack(
@@ -88,6 +97,7 @@ const mcpProxyStack = new McpProxyStack(
     envConfig,
     secretsStack,
     subdomainStack,
+    webAclArn: wafStack.webAclArn,
     env: {
       account: envConfig.accountId,
       region: envConfig.region,
@@ -98,15 +108,7 @@ const mcpProxyStack = new McpProxyStack(
 // Ensure secrets and subdomain stacks are created before MCP proxy stack
 mcpProxyStack.addDependency(secretsStack);
 mcpProxyStack.addDependency(subdomainStack);
-
-// WAF Stack — must be in us-east-1 for CloudFront; creates WebACL with managed rules + rate limit
-const wafStack = new WafStack(app, `ask-archil-io-waf-${envConfig.stage}`, {
-  envConfig,
-  env: {
-    account: envConfig.accountId,
-    region: "us-east-1",
-  },
-});
+mcpProxyStack.addDependency(wafStack);
 
 // Application Stack - the actual web app
 const webAppStack = new WebAppStack(app, `ask-archil-io-${envConfig.stage}`, {

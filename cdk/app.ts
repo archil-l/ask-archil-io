@@ -7,6 +7,7 @@ import { SubdomainStack } from "./lib/subdomain-stack.js";
 import { LLMStreamStack } from "./lib/llm-stream-stack.js";
 import { McpProxyStack } from "./lib/mcp-proxy-stack.js";
 import { SecretsStack } from "./lib/secrets-stack.js";
+import { WafStack } from "./lib/waf-stack.js";
 import { getEnvironmentConfig, Stage } from "./config/environments.js";
 
 const GITHUB_ORG = "archil-l";
@@ -98,6 +99,15 @@ const mcpProxyStack = new McpProxyStack(
 mcpProxyStack.addDependency(secretsStack);
 mcpProxyStack.addDependency(subdomainStack);
 
+// WAF Stack — must be in us-east-1 for CloudFront; creates WebACL with managed rules + rate limit
+const wafStack = new WafStack(app, `ask-archil-io-waf-${envConfig.stage}`, {
+  envConfig,
+  env: {
+    account: envConfig.accountId,
+    region: "us-east-1",
+  },
+});
+
 // Application Stack - the actual web app
 const webAppStack = new WebAppStack(app, `ask-archil-io-${envConfig.stage}`, {
   envConfig,
@@ -105,6 +115,7 @@ const webAppStack = new WebAppStack(app, `ask-archil-io-${envConfig.stage}`, {
   secretsStack,
   llmStreamStack,
   mcpProxyStack,
+  webAclArn: wafStack.webAclArn,
   env: {
     account: envConfig.accountId,
     region: envConfig.region,
@@ -116,3 +127,4 @@ webAppStack.addDependency(subdomainStack);
 webAppStack.addDependency(secretsStack);
 webAppStack.addDependency(llmStreamStack);
 webAppStack.addDependency(mcpProxyStack);
+webAppStack.addDependency(wafStack);

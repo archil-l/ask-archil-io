@@ -27,13 +27,14 @@ interface WebAppStackProps extends cdk.StackProps {
   secretsStack: SecretsStack;
   llmStreamStack: LLMStreamStack;
   mcpProxyStack: McpProxyStack;
+  webAclArn?: string;
 }
 
 export class WebAppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: WebAppStackProps) {
     super(scope, id, props);
 
-    const { envConfig, secretsStack, llmStreamStack, mcpProxyStack } = props;
+    const { envConfig, secretsStack, llmStreamStack, mcpProxyStack, webAclArn } = props;
 
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -204,6 +205,7 @@ export class WebAppStack extends cdk.Stack {
         ...(envConfig.domainName && certificate
           ? { domainNames: [envConfig.domainName], certificate }
           : {}),
+        ...(webAclArn ? { webAclId: webAclArn } : {}),
         defaultBehavior: {
           origin: new origins.HttpOrigin(apiGatewayHostname, {
             protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,

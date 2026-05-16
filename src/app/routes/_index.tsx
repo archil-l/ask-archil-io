@@ -45,6 +45,7 @@ const JSON_LD = JSON.stringify({
 });
 
 export const meta: MetaFunction = () => [
+  { tagName: "link", rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
   { title: "Archil Lelashvili – Software Engineer" },
   { name: "description", content: DESCRIPTION },
   { name: "robots", content: "index, follow" },
@@ -79,7 +80,7 @@ export default function Index() {
         dangerouslySetInnerHTML={{ __html: JSON_LD }}
       />
       <noscript>
-        <h1>Archil Lelashvili – Software Engineer &amp; AI Builder</h1>
+        <h1>Archil Lelashvili – Software Engineer</h1>
         <p>
           Software engineer with 5 years of experience building enterprise web
           applications. Currently at Amazon Robotics, developing agentic AI

@@ -21,7 +21,7 @@
     "cdk:deploy:mcp-proxy": "npm run release:mcp-proxy && npm run cdk:build && npx cdk deploy ask-archil-io-mcp-proxy-prod --require-approval never --profile agent"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.80.0",
+    "@anthropic-ai/sdk": "^0.125.0",
     "@aws-crypto/sha256-js": "^5.2.0",
     "@aws-sdk/client-s3": "3.1041.0",
     "@aws-sdk/client-secrets-manager": "3.1041.0",

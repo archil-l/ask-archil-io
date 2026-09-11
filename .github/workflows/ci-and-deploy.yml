@@ -113,7 +113,7 @@ jobs:
         run: npm run cdk:build
 
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ask-archil-io-github-actions-role-prod
           aws-region: ${{ secrets.AWS_REGION }}

@@ -1,5 +1,3 @@
-"use client";
-
 import type { SourceUrlUIPart, SourceDocumentUIPart, DataUIPart } from "~/lib/message-schema";
 
 interface SourceUrlPartProps {

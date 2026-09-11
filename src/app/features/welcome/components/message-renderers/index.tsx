@@ -1,5 +1,3 @@
-"use client";
-
 import type { AgentUIMessagePart } from "~/lib/message-schema";
 import {
   isTextUIPart,

@@ -1,5 +1,3 @@
-"use client";
-
 import type { DynamicToolUIPart } from "~/lib/message-schema";
 import {
   WebPreview,

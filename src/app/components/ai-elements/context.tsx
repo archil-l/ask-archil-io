@@ -1,5 +1,3 @@
-"use client";
-
 import type { LanguageModelUsage } from "~/lib/message-schema";
 import type { ComponentProps } from "react";
 

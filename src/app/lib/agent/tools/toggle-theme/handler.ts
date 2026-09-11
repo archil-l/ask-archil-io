@@ -1,5 +1,3 @@
-"use client";
-
 import { Theme } from "~/hooks/use-theme";
 import { AddToolOutputFn } from "~/lib/agent/hooks/use-client-tool-handlers";
 

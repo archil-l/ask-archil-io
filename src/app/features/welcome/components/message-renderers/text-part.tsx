@@ -1,5 +1,3 @@
-"use client";
-
 import type { TextUIPart } from "~/lib/message-schema";
 import { MessageResponse } from "~/components/ai-elements/message";
 

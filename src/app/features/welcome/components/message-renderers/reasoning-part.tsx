@@ -1,5 +1,3 @@
-"use client";
-
 import type { ReasoningUIPart } from "~/lib/message-schema";
 import {
   Reasoning,

@@ -1,5 +1,3 @@
-"use client";
-
 import type { FileUIPart } from "~/lib/message-schema";
 
 interface FilePartProps {

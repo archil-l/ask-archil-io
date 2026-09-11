@@ -1,5 +1,3 @@
-"use client";
-
 import type { Experimental_TranscriptionResult as TranscriptionResult } from "~/lib/message-schema";
 import type { ComponentProps, ReactNode } from "react";
 

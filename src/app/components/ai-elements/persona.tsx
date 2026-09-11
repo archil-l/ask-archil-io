@@ -1,5 +1,3 @@
-"use client";
-
 import type { RiveParameters } from "@rive-app/react-webgl2";
 import type { FC, ReactNode } from "react";
 

@@ -1,5 +1,3 @@
-"use client";
-
 import type { DynamicToolUIPart, ToolUIPart } from "~/lib/message-schema";
 import type { ComponentProps, ReactNode } from "react";
 

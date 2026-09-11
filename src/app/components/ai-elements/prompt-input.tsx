@@ -1,5 +1,3 @@
-"use client";
-
 import type { ChatStatus, FileUIPart, SourceDocumentUIPart } from "~/lib/message-schema";
 import type {
   ChangeEvent,

@@ -1,5 +1,3 @@
-"use client";
-
 import { PREDEFINED_PROMPTS } from "./constants";
 import { useWelcomeSession } from "./hooks/use-welcome-session";
 import { ConversationProvider } from "~/contexts/conversation-context";

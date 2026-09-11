@@ -1,4 +1,3 @@
-"use client";
 import { Conversation } from "~/components/ai-elements/conversation";
 import { ConversationContent } from "~/components/ai-elements/conversation";
 import { Message } from "~/components/ai-elements/message";

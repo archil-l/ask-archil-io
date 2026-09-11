@@ -1,5 +1,3 @@
-"use client";
-
 import type { AgentUIMessage } from "~/lib/message-schema";
 import type { LinkSafetyModalProps } from "streamdown";
 import type {

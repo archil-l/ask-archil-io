@@ -1,5 +1,3 @@
-"use client";
-
 import type { DynamicToolUIPart, ToolUIPart } from "~/lib/message-schema";
 import {
   Tool,

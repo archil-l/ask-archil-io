@@ -1,5 +1,3 @@
-"use client";
-
 import type { CarouselApi } from "~/components/ui/carousel";
 import type { ComponentProps } from "react";
 
